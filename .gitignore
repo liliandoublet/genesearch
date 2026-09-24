@@ -1,0 +1,14 @@
+# Données locales (bronze / silver / gold), jamais versionnées
+data/
+*.duckdb
+*.duckdb.wal
+
+# Environnement et caches
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+dist/
+build/
