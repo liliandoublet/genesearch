@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/rappel-claude-md.sh",
+            "timeout": 10,
+            "statusMessage": "Vérification de CLAUDE.md"
+          }
+        ]
+      }
+    ]
+  }
+}

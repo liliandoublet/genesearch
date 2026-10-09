@@ -8,6 +8,8 @@ La recherche approchée est le cas nominal : les sources transcrites automatique
 exemple les recensements Socface) ont un taux d'erreur de 15 à 20 %. Chaque résultat porte un
 niveau de confiance, et chaque notice garde sa provenance (cote, vue, URL).
 
+La feuille de route est dans [`PLAN.md`](PLAN.md).
+
 ## Prérequis
 
 - [uv](https://docs.astral.sh/uv/) ≥ 0.4
