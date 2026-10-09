@@ -55,11 +55,18 @@ src/doudoumil_search/
 - **Dernière mise à jour** : 2026-10-09
 - **Jalons terminés** : 0 (socle), 1 (modèle pivot)
 - **Jalon en cours** : aucun — prochain : **jalon 2, ingestion INSEE décès → bronze**
-- **Prochaine action** : trancher la clé naturelle de l'`acte_id` INSEE et le traitement des
-  dates partielles (voir PLAN.md, jalon 2), puis écrire le parseur et sa fixture.
+- **Prochaine action** : trancher la clé naturelle de l'`acte_id` INSEE (PLAN.md, jalon 2),
+  puis faire évoluer le pivot (`date_naissance_brute`, `annee_naissance_min/max`,
+  `nature_nom`) avant d'écrire le parseur et sa fixture.
 - **Décisions prises** :
   - Polars pour les transformations, Parquet pour bronze/silver, DuckDB pour gold.
   - Énumérations stockées en `String` dans le Parquet ; la validation relève de Pydantic.
+  - Conception de la recherche fixée dans PLAN.md, règles R1 à R5 :
+    - R1 : présélection à trois canaux (phonétique, noms proches, prénom + naissance + lieu) ;
+    - R2 : nature du nom (`naissance` / `marital` / `inconnue`) et option `--conjoint` ;
+    - R3 : naissances en intervalles d'années, avec une tolérance par source ;
+    - R4 : prénoms comparés sans tenir compte de l'ordre, avec une table d'équivalences ;
+    - R5 : score pondéré, puis calibré en probabilité par source.
 - **Points ouverts** : voir les blocs « Décisions » de PLAN.md.
 - **Dettes connues** : `main.py` est le fichier par défaut de `uv init`, à supprimer au jalon 2.
 
@@ -67,6 +74,9 @@ src/doudoumil_search/
 
 Une ligne par session de travail, la plus récente en haut.
 
+- 2026-10-09 — Conception de la recherche (PLAN.md, R1 à R5) : corrige les limites
+  identifiées (rappel de la présélection, femmes mariées, dates approximatives, prénoms
+  multiples, score non calibré) ; tâches réparties dans les jalons 2 à 7.
 - 2026-10-09 — Création de PLAN.md, de ce CLAUDE.md et du hook de fin de run qui en impose la
   mise à jour.
 - (avant) — Socle du dépôt et modèle pivot (jalons 0 et 1).
