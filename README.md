@@ -2,13 +2,14 @@
 
 Moteur de recherche généalogique personnel, fonctionnant entièrement en local. Il indexe des
 notices nominatives issues d'archives françaises et les interroge avec tolérance aux variantes
-orthographiques. Il les rapproche ensuite des individus d'un arbre GEDCOM.
+orthographiques. En option, il les rapproche des individus d'un arbre GEDCOM.
 
 La recherche approchée est le cas nominal : les sources transcrites automatiquement (par
 exemple les recensements Socface) ont un taux d'erreur de 15 à 20 %. Chaque résultat porte un
 niveau de confiance, et chaque notice garde sa provenance (cote, vue, URL).
 
-La feuille de route est dans [`PLAN.md`](PLAN.md).
+Objectif : remplacer Filae pour un usage personnel (recherche nominative, recensements
+transcrits, images des actes). La feuille de route est dans [`PLAN.md`](PLAN.md).
 
 ## Prérequis
 

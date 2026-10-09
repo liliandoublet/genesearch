@@ -1,8 +1,12 @@
 # CLAUDE.md — doudoumil-search
 
-Moteur de recherche généalogique personnel, 100 % local : il indexe des notices d'archives
-françaises (INSEE décès, recensements Socface), les interroge avec tolérance aux variantes
-orthographiques et les rapproche d'un arbre GEDCOM. La recherche approchée est le cas nominal.
+Moteur de recherche généalogique personnel, 100 % local, destiné à **remplacer Filae** pour
+trois usages : la recherche nominative, les recensements transcrits et l'accès aux images des
+actes, sur toute la France. Il indexe des notices de sources publiques (INSEE décès,
+recensements Socface, Morts pour la France, registres matricules, relevés personnels) et les
+interroge avec tolérance aux variantes orthographiques. La recherche approchée est le cas
+nominal. L'arbre généalogique est hors périmètre : l'utilisateur le gère avec son propre code
+à partir du GEDCOM.
 
 - Feuille de route détaillée : `PLAN.md` (à lire avant de commencer un jalon)
 - Présentation et démonstrations : `README.md`
@@ -41,11 +45,11 @@ Les trois vérifications doivent être vertes avant tout commit.
 src/doudoumil_search/
 ├── pivot.py      # Acte, Mention, énumérations, fabriquer_id()
 ├── schemas.py    # SCHEMA_ACTES, SCHEMA_MENTIONS, vers_dataframe()
-├── ingest/       # sources → bronze           (jalons 2 et 5)
-├── normalize/    # bronze → silver            (jalon 3)
-├── search/       # silver → gold, recherche   (jalon 4)
-├── api/          # FastAPI                    (jalon 6)
-└── linkage/      # rapprochement GEDCOM       (jalon 7)
+├── ingest/       # sources → bronze                (jalons 2, 6, 8)
+├── normalize/    # bronze → silver                 (jalon 3)
+├── search/       # silver → gold, recherche        (jalon 4)
+├── api/          # FastAPI + interface web locale  (jalons 5 et 7)
+└── linkage/      # rapprochement GEDCOM, optionnel (jalon 9)
 ```
 
 ## État du projet
@@ -57,8 +61,15 @@ src/doudoumil_search/
 - **Jalon en cours** : aucun — prochain : **jalon 2, ingestion INSEE décès → bronze**
 - **Prochaine action** : trancher la clé naturelle de l'`acte_id` INSEE (PLAN.md, jalon 2),
   puis faire évoluer le pivot (`date_naissance_brute`, `annee_naissance_min/max`,
-  `nature_nom`) avant d'écrire le parseur et sa fixture.
+  `nature_nom`) avant d'écrire le parseur et sa fixture. En parallèle : préalable P de
+  PLAN.md (accès aux sources), en commençant par l'export en masse de Socface.
 - **Décisions prises** :
+  - Périmètre (PLAN.md §1) : recherche nominative, recensements, images ; toute la France ;
+    uniquement sur l'ordinateur de l'utilisateur ; pas d'arbre (code GEDCOM de l'utilisateur).
+  - Ordre : chaîne INSEE (jalons 2-4), interface web (5), recensements (6), images et
+    localisateur de registres (7), autres sources (8), GEDCOM optionnel (9), finitions (10).
+  - N'utiliser que des exports officiels, des API documentées ou des requêtes ponctuelles
+    autorisées : jamais d'aspiration massive d'un site.
   - Polars pour les transformations, Parquet pour bronze/silver, DuckDB pour gold.
   - Énumérations stockées en `String` dans le Parquet ; la validation relève de Pydantic.
   - Conception de la recherche fixée dans PLAN.md, règles R1 à R5 :
@@ -67,13 +78,22 @@ src/doudoumil_search/
     - R3 : naissances en intervalles d'années, avec une tolérance par source ;
     - R4 : prénoms comparés sans tenir compte de l'ordre, avec une table d'équivalences ;
     - R5 : score pondéré, puis calibré en probabilité par source.
-- **Points ouverts** : voir les blocs « Décisions » de PLAN.md.
+- **Points ouverts** : voir les blocs « Décisions » de PLAN.md. Le plus structurant : aucun
+  export en masse de Socface ni des registres matricules n'a encore été trouvé (consultation
+  gratuite sur FranceArchives seulement) ; pistes à vérifier : dump RDF et point SPARQL de
+  FranceArchives, demande d'export à FranceArchives et à l'INED.
+- **Manque assumé** : pas d'index national ouvert des naissances et mariages d'avant 1970 ;
+  compensé par le localisateur de registres (jalon 7) et le connecteur de relevés (jalon 8).
 - **Dettes connues** : `main.py` est le fichier par défaut de `uv init`, à supprimer au jalon 2.
 
 ## Journal des sessions
 
 Une ligne par session de travail, la plus récente en haut.
 
+- 2026-10-09 — Plan produit « remplacer Filae » (PLAN.md réécrit) : périmètre, tableau de
+  correspondance Filae → sources ouvertes, préalable P sur l'accès aux sources, nouveaux
+  jalons (interface web 5, recensements 6, images et localisateur 7, autres sources 8,
+  GEDCOM optionnel 9, finitions 10).
 - 2026-10-09 — Conception de la recherche (PLAN.md, R1 à R5) : corrige les limites
   identifiées (rappel de la présélection, femmes mariées, dates approximatives, prénoms
   multiples, score non calibré) ; tâches réparties dans les jalons 2 à 7.
