@@ -334,29 +334,50 @@ prénoms (`Jn Bte` → `JEAN BAPTISTE`) ; voir le README.
 **Objectif** : une base DuckDB dans `data/gold/` interrogeable avec tolérance aux variantes,
 chaque résultat portant un score calibré et sa provenance (voir R1 à R5).
 
-- [ ] Ajouter `duckdb` aux dépendances
-- [ ] Construction de la base gold depuis silver : tables `actes` et `mentions`, index sur
-  `nom_phonetique`, `nom_norm`, `annee`, `departement`, `annee_naissance_min/max` ; table
-  des clés phonétiques des prénoms ; table des noms distincts avec leur nombre d'occurrences
-  (canal B)
-- [ ] Présélection à trois canaux A, B, C, union et dédoublonnage des candidats (R1)
-- [ ] Composantes du score : nom (Jaro-Winkler / Levenshtein intégrés à DuckDB), prénoms
-  (R4), naissance (R3), lieu ; valeur neutre et pondération par `confiance_source` (R5)
-- [ ] Règle des noms `marital` et option `--conjoint` (R2)
-- [ ] Résultat : acte + mention + score + probabilité calibrée et libellé + canaux +
+- [x] Ajouter `duckdb` aux dépendances (et `rapidfuzz` pour les ressemblances côté Python)
+- [x] Construction de la base gold depuis silver : tables `actes` et `mentions` (index sur
+  les identifiants pour lire les fiches), table `personnes` triée par clé phonétique (DuckDB
+  saute les blocs inutiles), table `prenoms` (clés phonétiques, canal C), table `noms` des
+  noms distincts avec leur nombre d'occurrences (canal B), table `lieux` (codes ramenés à la
+  commune actuelle), `calibration` conservée d'une reconstruction à l'autre, `meta`
+- [x] Présélection à trois canaux A, B, C, plus un canal « conjoint » (R2), union et
+  dédoublonnage des candidats, ordre déterministe (R1)
+- [x] Composantes du score : nom (Jaro-Winkler), prénoms (R4), naissance (R3), lieu ; valeur
+  neutre et pondération par `confiance_source` (R5)
+- [x] Règle des noms `marital` et option `--conjoint` (R2)
+- [x] Résultat : acte + mention + score + probabilité calibrée et libellé + canaux +
   provenance (`depot`, `cote`, `vue`, `url_image`)
-- [ ] CLI : `doudoumil index` et
-  `doudoumil cherche "LE GOFF Marie" --naissance 1880-1885 --lieu 29 [--conjoint NOM]`
-- [ ] Générateur d'erreurs de transcription et jeu d'évaluation synthétique (R5)
-- [ ] Mesures : rappel de la présélection, précision et rappel du classement, score de Brier
-- [ ] Calibration par source enregistrée dans gold ; test de non-régression en CI (R5)
+- [x] CLI : `doudoumil index` et
+  `doudoumil cherche "LE GOFF Marie" --naissance 1880-1885 --lieu 29 [--conjoint NOM]`,
+  plus `--sexe`, `--annees`, `--source`, `--limite`, `--details`
+- [x] Générateur d'erreurs de transcription et jeu d'évaluation synthétique (R5), en deux
+  modes : requêtes imprécises (`requete`) et données bruitées repassées par silver et gold
+  (`donnees`) ; commandes `doudoumil evalue` et `doudoumil calibre`
+- [x] Mesures : rappel de la présélection, rappel au rang 1 et dans les 10 premiers, rang
+  réciproque moyen, score de Brier (calibration ajustée sur une moitié des cas, contrôlée
+  sur l'autre)
+- [x] Calibration par source enregistrée dans gold ; test de non-régression en CI (R5),
+  sur une population synthétique dense de 6 000 personnes
 - [ ] Mesure des performances sur le fichier INSEE complet (≈ 25 M), dont la durée du canal B
   (objectif : moins d'une seconde par requête)
 
-**Décisions**
-- Base gold reconstruite entièrement ou mise à jour incrémentale.
-- Régression isotone codée dans le projet (algorithme PAV, quelques dizaines de lignes) ou
-  dépendance à scikit-learn.
+**Décisions tranchées**
+- Base gold reconstruite entièrement à chaque `doudoumil index` (seule la calibration est
+  reprise) ; la mise à jour incrémentale est reportée au jalon 10 si la durée le justifie.
+- Régression isotone codée dans le projet (algorithme PAV), sans scikit-learn.
+- Canal B : distance d'édition ≤ 2, ramenée à 1 pour les noms de 4 lettres ou moins (deux
+  erreurs sur un nom court acceptent presque tout), ou Jaro-Winkler ≥ 0,85 ; longueur à ±3.
+- Score des prénoms : 95 % pour la moyenne des meilleures ressemblances, 5 % pour un premier
+  prénom identique (un bonus ajouté puis plafonné à 1 s'annulait).
+- Naissance : le score s'annule une année après la limite de tolérance,
+  `max(0, 1 − écart / (tolérance + 1))`.
+- Les petites tables de correspondance passent par un Parquet temporaire pour éviter la
+  dépendance à `pyarrow`.
+
+**Mesures sur données synthétiques** (40 % d'erreurs de lecture, mode `donnees`, 300 cas) :
+avec la clé phonétique seule, 83,7 % des bonnes notices sont présélectionnées ; avec le
+canal B, 100 %. Le canal C ne change rien sur ces données, qui ne contiennent ni nom absent
+ni nom d'épouse : il est conçu pour les recensements.
 
 **Démo** : recherche approchée en ligne de commande sur le fichier INSEE complet, dont une
 notice volontairement mal orthographiée retrouvée par le canal B.

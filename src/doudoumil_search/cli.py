@@ -7,6 +7,10 @@ Exemples ::
     doudoumil ingest insee                 # tous les fichiers téléchargés
     doudoumil ingest insee deces-2020.txt  # un fichier précis
     doudoumil normalize                    # bronze → silver
+    doudoumil index                        # silver → gold (base de recherche)
+    doudoumil cherche "LE GOFF Marie" --naissance 1930-1932 --lieu Quimper
+    doudoumil evalue                       # mesure la qualité de la recherche
+    doudoumil calibre                      # transforme le score en probabilité
 
 Les données sont rangées sous ``data/`` (ou sous ``$DOUDOUMIL_DATA``).
 """
@@ -22,12 +26,23 @@ from pathlib import Path
 from doudoumil_search.config import (
     dossier_bronze,
     dossier_donnees,
+    dossier_gold,
     dossier_referentiels,
     dossier_silver,
 )
 from doudoumil_search.ingest import insee_deces, telechargement
 from doudoumil_search.normalize import lieux, silver
 from doudoumil_search.pivot import Source
+from doudoumil_search.search import evaluation, gold
+from doudoumil_search.search.affichage import formater
+from doudoumil_search.search.moteur import Moteur
+from doudoumil_search.search.requete import (
+    Lieu,
+    LieuInconnu,
+    Requete,
+    resoudre_lieu,
+    separer_nom_prenoms,
+)
 
 journal = logging.getLogger("doudoumil_search")
 
@@ -99,6 +114,97 @@ def commande_normalize(args: argparse.Namespace) -> int:
     return 0
 
 
+def commande_index(args: argparse.Namespace) -> int:
+    referentiel = charger_referentiel(args.donnees)
+    try:
+        rapport = gold.construire_gold(
+            dossier_silver(args.donnees), dossier_gold(args.donnees), referentiel
+        )
+    except FileNotFoundError as erreur:
+        journal.error("%s", erreur)
+        return 1
+    print(
+        f"base de recherche : {rapport.personnes} personnes, {rapport.noms_distincts} noms "
+        f"distincts ({', '.join(rapport.sources)}) dans {rapport.chemin}"
+    )
+    return 0
+
+
+def commande_cherche(args: argparse.Namespace) -> int:
+    nom, prenoms = separer_nom_prenoms(args.texte or "")
+    nom, prenoms = args.nom or nom, args.prenoms or prenoms
+    lieu = Lieu()
+    if args.lieu:
+        try:
+            lieu = resoudre_lieu(args.lieu, charger_referentiel(args.donnees))
+        except LieuInconnu as erreur:
+            journal.error("%s", erreur)
+            return 1
+    naissance = (args.naissance.start, args.naissance.stop - 1) if args.naissance else None
+    annees = (args.annees.start, args.annees.stop - 1) if args.annees else None
+    requete = Requete.creer(
+        nom=nom,
+        prenoms=prenoms,
+        sexe=args.sexe,
+        naissance=naissance,
+        annees=annees,
+        lieu=lieu,
+        conjoint=args.conjoint,
+        sources=tuple(args.source or ()),
+        limite=args.limite,
+    )
+    if not requete.est_exploitable():
+        journal.error("précisez un nom, ou un prénom avec --naissance et --lieu")
+        return 1
+    try:
+        moteur = Moteur(gold.chemin_base(dossier_gold(args.donnees)))
+    except FileNotFoundError as erreur:
+        journal.error("%s", erreur)
+        return 1
+    with moteur:
+        resultats = moteur.rechercher(requete)
+    if not resultats:
+        print("aucun résultat")
+        return 0
+    for rang, resultat in enumerate(resultats, start=1):
+        print(formater(rang, resultat, details=args.details))
+    return 0
+
+
+def commande_evalue(args: argparse.Namespace) -> int:
+    if args.mode == "donnees":
+        mesures = evaluation.evaluer_donnees(
+            dossier_bronze(args.donnees),
+            charger_referentiel(args.donnees),
+            args.cas,
+            args.taux,
+            args.graine,
+            args.actes_max,
+        )
+    else:
+        chemin = gold.chemin_base(dossier_gold(args.donnees))
+        if not chemin.exists():
+            journal.error("base de recherche absente : lancez « doudoumil index »")
+            return 1
+        mesures = evaluation.evaluer_requetes(chemin, args.cas, args.taux, args.graine)
+    taux = evaluation.pourcent(args.taux, 0)
+    print(f"mode {args.mode}, taux d'erreur {taux} : {mesures.resume()}")
+    return 0
+
+
+def commande_calibre(args: argparse.Namespace) -> int:
+    chemin = gold.chemin_base(dossier_gold(args.donnees))
+    if not chemin.exists():
+        journal.error("base de recherche absente : lancez « doudoumil index »")
+        return 1
+    mesures = evaluation.evaluer_requetes(chemin, args.cas, args.taux, args.graine)
+    evaluation.enregistrer_calibration(chemin, mesures.paliers)
+    for source, paliers in sorted(mesures.paliers.items()):
+        print(f"{source} : calibration en {len(paliers)} paliers")
+    print(mesures.resume())
+    return 0
+
+
 def _ingerer(chemin: Path, bronze: Path) -> insee_deces.RapportIngestion:
     return insee_deces.ingerer_fichier(chemin, bronze)
 
@@ -165,6 +271,36 @@ def construire_analyseur() -> argparse.ArgumentParser:
         "sources", nargs="*", help="sources à normaliser (défaut : toutes celles de bronze)"
     )
     normalize.set_defaults(fonction=commande_normalize)
+
+    index = commandes.add_parser("index", help="construire la base de recherche (gold)")
+    index.set_defaults(fonction=commande_index)
+
+    cherche = commandes.add_parser("cherche", help="chercher une personne")
+    cherche.add_argument("texte", nargs="?", help="« NOM Prénoms », ex. « LE GOFF Marie »")
+    cherche.add_argument("--nom")
+    cherche.add_argument("--prenoms")
+    cherche.add_argument("--sexe", choices=("M", "F"))
+    cherche.add_argument("--naissance", type=intervalle, help="année ou intervalle de naissance")
+    cherche.add_argument("--annees", type=intervalle, help="année ou intervalle de l'acte")
+    cherche.add_argument("--lieu", help="commune, code INSEE ou département (ex. 29)")
+    cherche.add_argument("--conjoint", help="nom du conjoint, pour une femme mariée")
+    cherche.add_argument("--source", action="append", help="limiter à une source (répétable)")
+    cherche.add_argument("--limite", type=int, default=20)
+    cherche.add_argument("--details", action="store_true", help="composantes du score")
+    cherche.set_defaults(fonction=commande_cherche)
+
+    evalue = commandes.add_parser("evalue", help="mesurer la qualité de la recherche")
+    calibre = commandes.add_parser("calibre", help="calibrer le score en probabilité")
+    for sous in (evalue, calibre):
+        sous.add_argument("--cas", type=int, default=300, help="nombre de requêtes de test")
+        sous.add_argument("--taux", type=float, default=0.2, help="taux d'erreurs simulées")
+        sous.add_argument("--graine", type=int, default=1, help="graine du tirage au hasard")
+    evalue.add_argument("--mode", choices=("requete", "donnees"), default="requete")
+    evalue.add_argument(
+        "--actes-max", type=int, default=None, help="mode données : actes par partition"
+    )
+    evalue.set_defaults(fonction=commande_evalue)
+    calibre.set_defaults(fonction=commande_calibre)
     return analyseur
 
 

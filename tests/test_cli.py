@@ -71,3 +71,59 @@ def test_normalize_sans_referentiel(tmp_path: Path, caplog: pytest.LogCaptureFix
 
 def test_normalize_bronze_vide(tmp_path: Path) -> None:
     assert main(["--donnees", str(tmp_path), "normalize"]) == 1
+
+
+def _chaine_complete(racine: Path) -> None:
+    main(["--donnees", str(racine), "ingest", "insee", str(FIXTURE)])
+    shutil.copytree(Path(__file__).parent / "fixtures" / "communes", racine / "ref" / "communes")
+    main(["--donnees", str(racine), "normalize"])
+
+
+def test_index_et_cherche(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _chaine_complete(tmp_path)
+    racine = str(tmp_path)
+    assert main(["--donnees", racine, "index"]) == 0
+    assert "base de recherche : 7 personnes" in capsys.readouterr().out
+
+    code = main(
+        ["--donnees", racine, "cherche", "LE GOFF Marie", "--naissance", "1931", "--details"]
+    )
+    assert code == 0
+    sortie = capsys.readouterr().out
+    premiere = sortie.splitlines()[0]
+    assert "LE GOFF MARIE JOSEPHE (F)" in premiere
+    assert "née le 02/03/1931 à QUIMPER" in premiere
+    assert "décès le 15/01/2020 à Rennes (35)" in premiere
+    assert "INSEE · deces-extrait.txt · vue 1" in sortie
+    assert "nom 1,00" in sortie
+
+
+def test_cherche_par_lieu_et_sans_nom(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _chaine_complete(tmp_path)
+    racine = str(tmp_path)
+    main(["--donnees", racine, "index"])
+    capsys.readouterr()
+    args = ["--donnees", racine, "cherche", "--prenoms", "Yves", "--naissance", "1919"]
+    assert main([*args, "--lieu", "Landerneau"]) == 0
+    assert "KERGOAT YVES MARIE" in capsys.readouterr().out.splitlines()[0]
+    assert main([*args, "--lieu", "Nulle-Part"]) == 1
+    assert main(["--donnees", racine, "cherche", "--prenoms", "Yves"]) == 1
+
+
+def test_cherche_sans_base(tmp_path: Path) -> None:
+    assert main(["--donnees", str(tmp_path), "cherche", "DUPONT"]) == 1
+    assert main(["--donnees", str(tmp_path), "index"]) == 1
+
+
+def test_evalue_et_calibre(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _chaine_complete(tmp_path)
+    racine = str(tmp_path)
+    main(["--donnees", racine, "index"])
+    capsys.readouterr()
+    assert main(["--donnees", racine, "evalue", "--cas", "5"]) == 0
+    assert "mode requete, taux d'erreur 20 % : 5 cas" in capsys.readouterr().out
+    assert main(["--donnees", racine, "evalue", "--mode", "donnees", "--cas", "5"]) == 0
+    assert main(["--donnees", racine, "calibre", "--cas", "7"]) == 0
+    assert "insee_deces : calibration en" in capsys.readouterr().out
+    main(["--donnees", racine, "cherche", "LE GOFF"])
+    assert "non calibré" not in capsys.readouterr().out

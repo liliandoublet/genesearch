@@ -64,6 +64,13 @@ src/doudoumil_search/
 │   ├── lieux.py           # référentiel des communes, codes anciens → commune actuelle
 │   └── silver.py          # dédoublonnage et normalisation d'une source
 ├── search/       # silver → gold, recherche        (jalon 4)
+│   ├── gold.py            # base DuckDB : personnes, prenoms, noms, lieux, calibration
+│   ├── requete.py         # requête, « NOM Prénoms », résolution des lieux
+│   ├── score.py           # composantes R2-R5 (fonctions pures)
+│   ├── moteur.py          # canaux A/B/C + conjoint, score, fiches
+│   ├── calibration.py     # régression isotone (PAV), Brier
+│   ├── evaluation.py      # bruit de transcription, modes requete/donnees, calibration
+│   └── affichage.py       # mise en forme pour la ligne de commande
 ├── api/          # FastAPI + interface web locale  (jalons 5 et 7)
 └── linkage/      # rapprochement GEDCOM, optionnel (jalon 9)
 ```
@@ -73,13 +80,14 @@ src/doudoumil_search/
 > Section tenue à jour à la fin de chaque run (voir « Règle de mise à jour » ci-dessous).
 
 - **Dernière mise à jour** : 2026-10-10
-- **Jalons terminés** : 0 (socle), 1 (modèle pivot), 2 (ingestion INSEE décès, sauf
-  vérification sur un fichier réel), 3 (normalisation → silver, sauf fusions anciennes)
-- **Jalon en cours** : 4 (base gold et recherche), dernier de l'étape 1 du plan (chaîne
-  complète INSEE, jalons 2 à 4)
-- **Prochaine action** : base DuckDB, présélection à trois canaux, score, calibration et
-  évaluation. En parallèle : préalable P de PLAN.md (accès aux sources), en commençant par
-  l'export en masse de Socface.
+- **Jalons terminés** : 0 (socle), 1 (modèle pivot), 2 (ingestion INSEE décès), 3
+  (normalisation → silver), 4 (base gold et recherche) : **l'étape 1 du plan (chaîne complète
+  INSEE) est faite**, sous réserve de la vérification sur de vrais fichiers INSEE.
+- **Jalon en cours** : aucun — prochain : **jalon 5, interface web locale**.
+- **Prochaine action** : dès que data.gouv.fr est accessible, télécharger et ingérer les vrais
+  fichiers INSEE pour vérifier le format, puis lancer `doudoumil calibre` et mesurer les
+  performances sur les ≈ 25 M de décès. En parallèle : préalable P de PLAN.md (accès aux
+  sources), en commençant par l'export en masse de Socface.
 - **Accès réseau de l'environnement de développement** : data.gouv.fr et insee.fr sont
   bloqués (refus 403 du proxy) ; PyPI, GitHub et registry.npmjs.org passent. Le format INSEE
   et le catalogue data.gouv.fr restent donc à vérifier sur de vrais fichiers.
@@ -98,6 +106,12 @@ src/doudoumil_search/
     figée par des valeurs de référence dans les tests.
   - Référentiel des communes : `@etalab/decoupage-administratif` 6.0.0 depuis le registre npm,
     dans `data/ref/communes/`.
+  - Recherche : canaux A (phonétique), B (noms proches dans la table `noms`), C (prénom +
+    naissance + département), conjoint ; score en Python (`search/score.py`), poids
+    0,35/0,30/0,20/0,15, neutre 0,5 ; calibration isotone par source dans la base gold.
+  - Évaluation : `doudoumil evalue` (modes `requete` et `donnees`) ; non-régression en CI
+    sur une population synthétique (`tests/population.py`), seuils dans
+    `tests/test_evaluation.py`.
   - CLI `doudoumil` en `argparse` ; pools de processus en démarrage *spawn* (un *fork* après
     la création de fils d'exécution a bloqué les tests).
   - Conception de la recherche fixée dans PLAN.md, règles R1 à R5 :
@@ -117,6 +131,11 @@ src/doudoumil_search/
 ## Journal des sessions
 
 Une ligne par session de travail, la plus récente en haut.
+
+- 2026-10-10 — Jalon 4 : base gold DuckDB, moteur à trois canaux plus conjoint, score R2-R5,
+  calibration isotone, évaluation (bruit de transcription, modes requete/donnees),
+  commandes `index`, `cherche`, `evalue`, `calibre`, non-régression en CI. Mesure : sur
+  données bruitées à 40 %, le canal B porte la présélection de 83,7 % à 100 %.
 
 - 2026-10-10 — Jalon 3 : normalisation des noms, prénoms (table d'équivalences), clé
   phonétique, intervalles de naissance, référentiel des communes (Etalab), étape silver avec
