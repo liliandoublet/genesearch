@@ -22,6 +22,10 @@ uv run pytest              # tests
 
 Les trois vérifications doivent être vertes avant tout commit.
 
+Tests : `tests/fabrique_insee.py` fabrique des lignes INSEE ; `python tests/fabrique_insee.py`
+régénère `tests/fixtures/deces-extrait.txt`. Un test qui pend échoue au bout de 60 s
+(`faulthandler_timeout`) ; lancer les commandes longues avec `timeout`.
+
 ## Conventions
 
 - **Tout en français** : identifiants, docstrings, commentaires, messages d'erreur, messages de
@@ -45,7 +49,12 @@ Les trois vérifications doivent être vertes avant tout commit.
 src/doudoumil_search/
 ├── pivot.py      # Acte, Mention, énumérations, fabriquer_id()
 ├── schemas.py    # SCHEMA_ACTES, SCHEMA_MENTIONS, vers_dataframe()
+├── config.py     # dossiers data/ (ou $DOUDOUMIL_DATA) : bronze, silver, gold, ref
+├── cli.py        # commande `doudoumil` (argparse)
 ├── ingest/       # sources → bronze                (jalons 2, 6, 8)
+│   ├── ecriture.py        # partition bronze écrite par lots, publiée d'un bloc
+│   ├── insee_deces.py     # connecteur INSEE décès (largeur fixe)
+│   └── telechargement.py  # catalogue data.gouv.fr, reprise, somme de contrôle
 ├── normalize/    # bronze → silver                 (jalon 3)
 ├── search/       # silver → gold, recherche        (jalon 4)
 ├── api/          # FastAPI + interface web locale  (jalons 5 et 7)
@@ -56,13 +65,16 @@ src/doudoumil_search/
 
 > Section tenue à jour à la fin de chaque run (voir « Règle de mise à jour » ci-dessous).
 
-- **Dernière mise à jour** : 2026-10-09
-- **Jalons terminés** : 0 (socle), 1 (modèle pivot)
-- **Jalon en cours** : aucun — prochain : **jalon 2, ingestion INSEE décès → bronze**
-- **Prochaine action** : trancher la clé naturelle de l'`acte_id` INSEE (PLAN.md, jalon 2),
-  puis faire évoluer le pivot (`date_naissance_brute`, `annee_naissance_min/max`,
-  `nature_nom`) avant d'écrire le parseur et sa fixture. En parallèle : préalable P de
-  PLAN.md (accès aux sources), en commençant par l'export en masse de Socface.
+- **Dernière mise à jour** : 2026-10-10
+- **Jalons terminés** : 0 (socle), 1 (modèle pivot), 2 (ingestion INSEE décès, sauf
+  vérification sur un fichier réel)
+- **Jalon en cours** : 3 (normalisation → silver), dans le cadre de l'étape 1 du plan
+  (chaîne complète INSEE, jalons 2 à 4)
+- **Prochaine action** : normalisation des noms, prénoms, dates et lieux. En parallèle :
+  préalable P de PLAN.md (accès aux sources), en commençant par l'export en masse de Socface.
+- **Accès réseau de l'environnement de développement** : data.gouv.fr et insee.fr sont
+  bloqués (refus 403 du proxy) ; PyPI, GitHub et registry.npmjs.org passent. Le format INSEE
+  et le catalogue data.gouv.fr restent donc à vérifier sur de vrais fichiers.
 - **Décisions prises** :
   - Périmètre (PLAN.md §1) : recherche nominative, recensements, images ; toute la France ;
     uniquement sur l'ordinateur de l'utilisateur ; pas d'arbre (code GEDCOM de l'utilisateur).
@@ -72,6 +84,10 @@ src/doudoumil_search/
     autorisées : jamais d'aspiration massive d'un site.
   - Polars pour les transformations, Parquet pour bronze/silver, DuckDB pour gold.
   - Énumérations stockées en `String` dans le Parquet ; la validation relève de Pydantic.
+  - Identifiant INSEE : clé de contenu (date de décès, commune, n° d'acte), voir PLAN.md
+    jalon 2 ; doublons gardés en bronze, éliminés en silver.
+  - CLI `doudoumil` en `argparse` ; pools de processus en démarrage *spawn* (un *fork* après
+    la création de fils d'exécution a bloqué les tests).
   - Conception de la recherche fixée dans PLAN.md, règles R1 à R5 :
     - R1 : présélection à trois canaux (phonétique, noms proches, prénom + naissance + lieu) ;
     - R2 : nature du nom (`naissance` / `marital` / `inconnue`) et option `--conjoint` ;
@@ -84,11 +100,15 @@ src/doudoumil_search/
   FranceArchives, demande d'export à FranceArchives et à l'INED.
 - **Manque assumé** : pas d'index national ouvert des naissances et mariages d'avant 1970 ;
   compensé par le localisateur de registres (jalon 7) et le connecteur de relevés (jalon 8).
-- **Dettes connues** : `main.py` est le fichier par défaut de `uv init`, à supprimer au jalon 2.
+- **Dettes connues** : aucune pour l'instant.
 
 ## Journal des sessions
 
 Une ligne par session de travail, la plus récente en haut.
+
+- 2026-10-10 — Jalon 2 : évolution du pivot (`nature_nom`, `date_naissance_brute`,
+  intervalle de naissance, outre-mer), connecteur INSEE décès vers bronze, téléchargement
+  data.gouv.fr avec reprise, CLI `doudoumil telecharge|ingest insee`, CI GitHub Actions.
 
 - 2026-10-09 — Plan produit « remplacer Filae » (PLAN.md réécrit) : périmètre, tableau de
   correspondance Filae → sources ouvertes, préalable P sur l'accès aux sources, nouveaux

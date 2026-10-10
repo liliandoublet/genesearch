@@ -1,0 +1,20 @@
+name: Vérifications
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verifications:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Installation
+        run: uv sync --locked
+      - name: Lint
+        run: uv run ruff check
+      - name: Format
+        run: uv run ruff format --check
+      - name: Tests
+        run: uv run pytest

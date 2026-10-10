@@ -230,45 +230,54 @@ pivot dans `data/bronze/`, sans aucune normalisation.
 
 Évolutions du pivot exigées par la conception de la recherche (à faire en premier) :
 
-- [ ] `Mention.date_naissance_brute: str | None` : date telle qu'écrite dans la source (R3)
-- [ ] `Mention.annee_naissance_min` / `annee_naissance_max: int | None` : remplis en silver,
+- [x] `Mention.date_naissance_brute: str | None` : date telle qu'écrite dans la source (R3)
+- [x] `Mention.annee_naissance_min` / `annee_naissance_max: int | None` : remplis en silver,
   avec validation `min ≤ max` (R3)
-- [ ] Énumération `NatureNom` (`naissance`, `marital`, `inconnue`) et
+- [x] Énumération `NatureNom` (`naissance`, `marital`, `inconnue`) et
   `Mention.nature_nom: NatureNom | None`, remplie à l'ingestion (R2)
-- [ ] Reporter ces champs dans `schemas.py` dans le même ordre et compléter les tests
+- [x] Reporter ces champs dans `schemas.py` dans le même ordre et compléter les tests
 
 Ingestion :
 
-- [ ] Nettoyage : supprimer le `main.py` généré par `uv init`
-- [ ] Documenter le format dans `ingest/insee_deces.py` : enregistrements à largeur fixe
+- [x] Nettoyage : supprimer le `main.py` généré par `uv init`
+- [~] Documenter le format dans `ingest/insee_deces.py` : enregistrements à largeur fixe
   (nom*prénoms/ sur 80 caractères, sexe, date de naissance, code et libellé du lieu de
-  naissance, pays, date de décès, code du lieu de décès, numéro d'acte), à revérifier sur la
-  documentation officielle avant d'écrire le parseur
-- [ ] Parseur ligne → `Acte` (type `deces`, `annee` = année du décès) + `Mention` (rôle `sujet`)
+  naissance, pays, date de décès, code du lieu de décès, numéro d'acte). Documenté ; **reste à
+  vérifier sur un fichier réel** (positions, encodage, largeurs en caractères ou en octets) :
+  data.gouv.fr et insee.fr sont bloqués dans l'environnement de développement
+- [x] Parseur ligne → `Acte` (type `deces`, `annee` = année du décès) + `Mention` (rôle `sujet`)
   - séparer `NOM*PRENOMS/` en `nom_brut` / `prenoms_bruts`
   - sexe `1`/`2` → `M`/`F`
   - lieu de décès → `commune_code_insee` et `departement` (2A/2B, 97x, 99 = étranger)
   - lieu de naissance → `lieu_naissance_brut` / `lieu_naissance_code_insee`
   - date de naissance : `date_naissance_brute` toujours ; `date_naissance` seulement si complète
-  - `nature_nom = naissance` (après vérification, R2) ; `confiance_source = 1.0`
-- [ ] Gestion des anomalies : codes lieux invalides, lignes tronquées → lignes rejetées
+  - `nature_nom = naissance` (à confirmer sur la documentation, R2) ; `confiance_source = 1.0`
+- [x] Gestion des anomalies : codes lieux invalides, lignes tronquées → lignes rejetées
   comptées et journalisées, jamais d'arrêt sur une ligne
-- [ ] Lecture en flux et écriture Parquet par lots (les fichiers annuels font des centaines de
+- [x] Lecture en flux et écriture Parquet par lots (les fichiers annuels font des centaines de
   Mo) ; partitionnement de `data/bronze/insee_deces/` par fichier source
-- [ ] Ingestion idempotente : réingérer un fichier redonne les mêmes identifiants
-- [ ] Téléchargement des fichiers depuis data.gouv.fr (`doudoumil telecharge insee`), avec
-  reprise et somme de contrôle
-- [ ] CLI minimale (`[project.scripts]`) : `doudoumil ingest insee <fichier>`
-- [ ] Fixture de quelques lignes (inventées ou anonymisées) dans `tests/fixtures/` et tests :
+- [x] Ingestion idempotente : réingérer un fichier redonne les mêmes identifiants
+- [~] Téléchargement des fichiers depuis data.gouv.fr (`doudoumil telecharge insee`), avec
+  reprise et somme de contrôle. Testé contre un serveur local qui imite l'API ; **reste à
+  vérifier sur le vrai catalogue** (identifiant du jeu de données, noms des fichiers)
+- [x] CLI minimale (`[project.scripts]`) : `doudoumil ingest insee <fichier>`
+- [x] Fixture de quelques lignes (inventées ou anonymisées) dans `tests/fixtures/` et tests :
   découpage, dates partielles, anomalies, idempotence, conformité au schéma
-- [ ] CI GitHub Actions : `ruff check`, `ruff format --check`, `pytest`
+- [x] CI GitHub Actions : `ruff check`, `ruff format --check`, `pytest`
 
-**Décisions**
-- Clé naturelle de l'`acte_id` : `(fichier, n° de ligne)` ne dédoublonne pas les
-  recouvrements entre fichiers mensuels et annuels. Option proposée : clé de contenu
-  `(date de décès, code lieu de décès, n° d'acte)`, avec `(fichier, ligne)` gardés en provenance
-  (`cote`, `vue`).
-- Bibliothèque de CLI : `argparse` (aucune dépendance) ou `typer`.
+**Décisions tranchées**
+- Clé naturelle de l'`acte_id` : clé de contenu `(date de décès, code lieu de décès, n° d'acte)`,
+  ou, sans numéro d'acte ni commune, `(nom et prénoms, date de naissance, date de décès,
+  commune)`. Un décès présent dans un fichier mensuel et dans le fichier annuel garde ainsi le
+  même identifiant ; `(fichier, ligne)` restent en provenance (`cote`, `vue`). Les doublons
+  sont conservés en bronze et éliminés en silver.
+- Bibliothèque de CLI : `argparse` (aucune dépendance).
+- Départements : le pivot accepte aussi les collectivités d'outre-mer (975 à 978, 984 à 989),
+  présentes dans les lieux de décès.
+- Une ligne n'est rejetée que si l'année du décès est illisible ou improbable ; les autres
+  défauts sont tolérés et comptés comme anomalies.
+- Ingestion en parallèle par fichier (`--processus`), en démarrage *spawn* : environ
+  12 000 lignes par seconde et par processus, mesurées sur des lignes générées.
 
 **Démo** : `uv run doudoumil ingest insee tests/fixtures/deces-extrait.txt` puis lecture du
 Parquet produit.

@@ -55,11 +55,20 @@ Tout est écrit sous `data/`, qui n'est pas versionné :
 
 Une couche ne modifie jamais la précédente : chaque étape produit de nouveaux fichiers.
 
-## Démonstration (jalon 1)
+## Démonstration
+
+### Jalon 2 — ingestion INSEE décès
 
 ```bash
-uv run python -c "from doudoumil_search.schemas import SCHEMA_ACTES, SCHEMA_MENTIONS; print(SCHEMA_ACTES); print(SCHEMA_MENTIONS)"
+uv run doudoumil telecharge insee --annees 2019-2020   # fichiers dans data/bronze/insee_deces/telechargements/
+uv run doudoumil ingest insee --processus 4            # Parquet pivot dans data/bronze/insee_deces/<fichier>/
+
+# sans téléchargement, sur le fichier d'exemple (personnes inventées) :
+uv run doudoumil ingest insee tests/fixtures/deces-extrait.txt
+uv run python -c "import polars as pl; print(pl.read_parquet('data/bronze/insee_deces/deces-extrait/mentions-*.parquet'))"
 ```
+
+Chaque partition contient aussi `rejets.csv`, la liste des lignes écartées et leur motif.
 
 ## Arborescence
 

@@ -5,8 +5,8 @@ enregistrement INSEE). Une *mention* est une personne citée dans cet acte avec 
 
 Principes :
 - les champs ``*_brut(s)`` conservent la valeur de la source sans aucune transformation ;
-- les champs ``*_norm`` et ``nom_phonetique`` sont vides en couche bronze et remplis en
-  couche silver par la normalisation ;
+- les champs ``*_norm``, ``nom_phonetique`` et ``annee_naissance_min/max`` sont vides en
+  couche bronze et remplis en couche silver par la normalisation ;
 - la provenance (``source``, ``depot``, ``cote``, ``vue``, ``url_image``) permet toujours le
   retour au document original.
 """
@@ -14,9 +14,16 @@ Principes :
 import hashlib
 from datetime import date, datetime
 from enum import StrEnum
-from typing import Annotated
+from typing import Annotated, Self
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    model_validator,
+)
 
 
 class Source(StrEnum):
@@ -58,12 +65,28 @@ class Sexe(StrEnum):
     F = "F"
 
 
+class NatureNom(StrEnum):
+    """Nature du nom relevé : celui de naissance, ou celui du mari pour une femme mariée.
+
+    Dans les recensements, une épouse ou une veuve est en général inscrite sous le nom de son
+    mari : la recherche ne doit alors pas la pénaliser sur le nom (règle R2 de PLAN.md).
+    """
+
+    NAISSANCE = "naissance"
+    MARITAL = "marital"
+    INCONNUE = "inconnue"
+
+
 # Code du Code Officiel Géographique : 5 caractères, le deuxième peut valoir A ou B pour la
 # Corse (2A004 = Ajaccio). Les pays étrangers sont codés 99xxx dans les fichiers INSEE.
 CodeInsee = Annotated[str, StringConstraints(pattern=r"^\d[\dAB]\d{3}$")]
 
-# Départements métropolitains (01-95, 2A, 2B), outre-mer (971-976) et étranger (99).
-Departement = Annotated[str, StringConstraints(pattern=r"^(\d{2}|2[AB]|97[1-6])$")]
+# Départements métropolitains (01-95, 2A, 2B), départements et collectivités d'outre-mer
+# (971 à 978, 984 à 989) et étranger (99).
+Departement = Annotated[str, StringConstraints(pattern=r"^(\d{2}|2[AB]|97[1-8]|98[4-9])$")]
+
+# Années de naissance : une personne citée en 1500 a pu naître bien avant.
+AnneeNaissance = Annotated[int, Field(ge=1300, le=2100)]
 
 # Identifiant hexadécimal de 128 bits produit par fabriquer_id().
 Identifiant = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{32}$")]
@@ -132,11 +155,17 @@ class Mention(_ModelePivot):
     role: Role
     nom_brut: str | None = None
     prenoms_bruts: str | None = None
+    nature_nom: NatureNom | None = None
     nom_norm: str | None = None
     nom_phonetique: str | None = None
     prenoms_norm: str | None = None
     sexe: Sexe | None = None
-    date_naissance: date | None = None
+    date_naissance_brute: str | None = Field(
+        default=None, description="Date telle qu'écrite dans la source, même incomplète"
+    )
+    date_naissance: date | None = Field(default=None, description="Seulement si complète")
+    annee_naissance_min: AnneeNaissance | None = None
+    annee_naissance_max: AnneeNaissance | None = None
     age: int | None = Field(default=None, ge=0, le=130, description="Âge en années révolues")
     profession: str | None = None
     lieu_naissance_brut: str | None = None
@@ -147,3 +176,13 @@ class Mention(_ModelePivot):
         le=1.0,
         description="Fiabilité estimée de la transcription (1 = saisie certaine)",
     )
+
+    @model_validator(mode="after")
+    def _verifier_intervalle_naissance(self) -> Self:
+        """L'intervalle de naissance est entier (deux bornes ordonnées) ou absent."""
+        bornes = (self.annee_naissance_min, self.annee_naissance_max)
+        if (bornes[0] is None) != (bornes[1] is None):
+            raise ValueError("annee_naissance_min et annee_naissance_max vont ensemble")
+        if bornes[0] is not None and bornes[1] is not None and bornes[0] > bornes[1]:
+            raise ValueError("annee_naissance_min doit être inférieure ou égale à max")
+        return self

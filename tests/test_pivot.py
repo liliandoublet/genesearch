@@ -6,7 +6,15 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from doudoumil_search.pivot import Acte, Mention, Role, Source, TypeActe, fabriquer_id
+from doudoumil_search.pivot import (
+    Acte,
+    Mention,
+    NatureNom,
+    Role,
+    Source,
+    TypeActe,
+    fabriquer_id,
+)
 
 
 def test_acte_valide(acte_valide: dict[str, Any]) -> None:
@@ -86,12 +94,12 @@ def test_code_insee_lieu_naissance_invalide(mention_valide: dict[str, Any]) -> N
         Mention(**{**mention_valide, "lieu_naissance_code_insee": "2C004"})
 
 
-@pytest.mark.parametrize("dep", ["01", "35", "2A", "2B", "971", "976", "99"])
+@pytest.mark.parametrize("dep", ["01", "35", "2A", "2B", "971", "976", "977", "988", "99"])
 def test_departement_valide(acte_valide: dict[str, Any], dep: str) -> None:
     assert Acte(**{**acte_valide, "departement": dep}).departement == dep
 
 
-@pytest.mark.parametrize("dep", ["1", "977", "2C", "350"])
+@pytest.mark.parametrize("dep", ["1", "979", "983", "2C", "350"])
 def test_departement_invalide(acte_valide: dict[str, Any], dep: str) -> None:
     with pytest.raises(ValidationError):
         Acte(**{**acte_valide, "departement": dep})
@@ -154,3 +162,47 @@ def test_fabriquer_id_distingue_les_cles() -> None:
 def test_fabriquer_id_cle_vide() -> None:
     with pytest.raises(ValueError, match="vide"):
         fabriquer_id(Source.INSEE_DECES)
+
+
+def test_nature_nom(mention_valide: dict[str, Any]) -> None:
+    mention = Mention(**{**mention_valide, "nature_nom": "marital"})
+    assert mention.nature_nom is NatureNom.MARITAL
+
+
+def test_nature_nom_inconnue_rejetee(mention_valide: dict[str, Any]) -> None:
+    with pytest.raises(ValidationError):
+        Mention(**{**mention_valide, "nature_nom": "usage"})
+
+
+def test_date_naissance_brute_conservee(mention_valide: dict[str, Any]) -> None:
+    """Une date partielle reste lisible telle quelle, sans date complète associée."""
+    mention = Mention(
+        **{**mention_valide, "date_naissance_brute": "19310300", "date_naissance": None}
+    )
+    assert mention.date_naissance_brute == "19310300"
+    assert mention.date_naissance is None
+
+
+@pytest.mark.parametrize(("mini", "maxi"), [(1931, 1931), (1880, 1881), (1300, 2100)])
+def test_intervalle_naissance_valide(mention_valide: dict[str, Any], mini: int, maxi: int) -> None:
+    champs = {"annee_naissance_min": mini, "annee_naissance_max": maxi}
+    mention = Mention(**{**mention_valide, **champs})
+    assert (mention.annee_naissance_min, mention.annee_naissance_max) == (mini, maxi)
+
+
+@pytest.mark.parametrize(
+    ("mini", "maxi", "message"),
+    [
+        (1882, 1881, "inférieure"),
+        (1880, None, "ensemble"),
+        (None, 1880, "ensemble"),
+        (1299, 1300, None),
+        (2100, 2101, None),
+    ],
+)
+def test_intervalle_naissance_invalide(
+    mention_valide: dict[str, Any], mini: int | None, maxi: int | None, message: str | None
+) -> None:
+    champs = {"annee_naissance_min": mini, "annee_naissance_max": maxi}
+    with pytest.raises(ValidationError, match=message):
+        Mention(**{**mention_valide, **champs})

@@ -9,6 +9,9 @@ dependencies = [
     "pydantic>=2.13.5",
 ]
 
+[project.scripts]
+doudoumil = "doudoumil_search.cli:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
@@ -29,6 +32,8 @@ ignore = ["RUF001", "RUF002", "RUF003"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra --strict-markers"
+# Un test bloqué échoue avec la pile des appels au lieu de pendre indéfiniment.
+faulthandler_timeout = 60
 
 [dependency-groups]
 dev = [
