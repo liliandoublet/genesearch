@@ -31,6 +31,7 @@ class Source(StrEnum):
 
     INSEE_DECES = "insee_deces"
     SOCFACE = "socface"
+    RELEVE = "releve"  # relevé fourni par l'utilisateur (cercle généalogique, transcription)
 
 
 class TypeActe(StrEnum):
@@ -144,6 +145,9 @@ class Acte(_ModelePivot):
     cote: str | None = None
     vue: str | None = None
     url_image: str | None = None
+    titre_source: str | None = Field(
+        default=None, description="Intitulé de la source, ex. « Baptêmes de Plougastel, relevé »"
+    )
     ingested_at: Annotated[datetime, AfterValidator(_exiger_fuseau)]
 
 

@@ -347,7 +347,7 @@ def creer_application(racine: Path) -> FastAPI:
                     affichage.naissance(f),
                     affichage.evenement(f),
                     affichage.ROLES.get(r.role, ""),
-                    SOURCES.get(r.source, r.source),
+                    f.get("titre_source") or SOURCES.get(r.source, r.source),
                     affichage.provenance(f),
                     f.get("url_image") or "",
                     ", ".join(r.canaux),

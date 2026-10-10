@@ -1,0 +1,12 @@
+Type;Date;Nom;Prénoms;Sexe;Père;Mère;Nom mère;Âge;Cote;Vue
+B;02/03/1755;LE GOFF;Marie Josèphe;F;Yves;Anne;KERGOAT;;3 E 103/2;12
+B;15/07/1756;LE GOFF;Jean;G;Yves;Anne;KERGOAT;;3 E 103/2;27
+S;../11/1760;QUEMENER;Guillaume;;;;;40 ans;3 E 103/3;5
+S;04/12/1760;LE GOFF;Jean;G;Yves;;;6 mois;3 E 103/3;9
+B;04/12/1760;LE GOFF;Jean;?;Yves;Anne;KERGOAT;;3 E 103/3;9
+B;04/12/1760;LE GOFF;Jean;M;Yves;Anne;KERGOAT;;3 E 103/3;10
+X;01/01/1761;MORVAN;Hervé;M;;;;;3 E 103/4;1
+B;;MORVAN;Hervé;M;;;;;3 E 103/4;2
+B;03/01/1761;;;;;;;;3 E 103/4;3
+
+S;20/02/1762;MORVAN;Hervé;M;;;;soixante;3 E 103/4;8

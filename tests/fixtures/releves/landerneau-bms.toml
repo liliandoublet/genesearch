@@ -1,0 +1,33 @@
+# Relevé d'essai : données inventées.
+[releve]
+titre = "Baptêmes et sépultures de Landerneau (1755-1762), relevé d'essai"
+fichier = "landerneau-bms.csv"
+confiance = 0.95
+cle = ["Type", "Date", "Nom", "Prénoms"]
+
+[acte]
+type = { colonne = "Type", valeurs = { B = "bapteme", S = "deces" } }
+date = { colonne = "Date", format = "%d/%m/%Y" }
+commune = "Landerneau"
+departement = "29"
+depot = "AD 29"
+cote = { colonne = "Cote" }
+vue = { colonne = "Vue" }
+
+[[personne]]
+role = "sujet"
+nom = { colonne = "Nom" }
+prenoms = { colonne = "Prénoms" }
+sexe = { colonne = "Sexe" }
+age = { colonne = "Âge" }
+
+[[personne]]
+role = "pere"
+nom = { colonne = "Nom" }
+prenoms = { colonne = "Père" }
+
+[[personne]]
+role = "mere"
+nom = { colonne = "Nom mère" }
+prenoms = { colonne = "Mère" }
+nature_nom = "naissance"

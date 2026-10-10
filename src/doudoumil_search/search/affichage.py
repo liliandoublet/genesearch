@@ -18,6 +18,7 @@ EVENEMENTS = {
 SOURCES = {
     "insee_deces": "Fichier des personnes décédées (INSEE)",
     "socface": "Recensement de la population, transcription Socface (INED, FranceArchives)",
+    "releve": "Relevé",
 }
 # Ce que désigne le champ « vue » selon la source : une ligne de fichier ou une vue d'archive.
 UNITES_VUE = {"insee_deces": "ligne"}
@@ -83,9 +84,16 @@ def provenance(fiche: dict[str, Any]) -> str:
     return " · ".join(m for m in morceaux if m)
 
 
+def nom_source(fiche: dict[str, Any]) -> str:
+    """Intitulé propre à la notice (titre d'un relevé), sinon nom de la source."""
+    if fiche.get("titre_source"):
+        return str(fiche["titre_source"])
+    return SOURCES.get(fiche.get("source") or "", fiche.get("source") or "source inconnue")
+
+
 def citation(fiche: dict[str, Any], consulte_le: date) -> str:
     """Citation de source prête à copier dans un arbre ou une note."""
-    source = SOURCES.get(fiche.get("source") or "", fiche.get("source") or "source inconnue")
+    source = nom_source(fiche)
     morceaux = [source]
     if fiche.get("depot") and fiche["depot"] not in source:
         morceaux.append(fiche["depot"])

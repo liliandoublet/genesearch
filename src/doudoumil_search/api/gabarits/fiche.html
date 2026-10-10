@@ -4,7 +4,7 @@
 {% if retour %}<p><a href="{{ retour }}">← retour aux résultats</a></p>{% endif %}
 <h1>{{ evenement(acte) | initiale }}</h1>
 <dl class="provenance">
-  <dt>Source</dt><dd>{{ noms_sources.get(acte.source, acte.source) }}</dd>
+  <dt>Source</dt><dd>{{ acte.titre_source or noms_sources.get(acte.source, acte.source) }}</dd>
   <dt>Provenance</dt><dd>{{ provenance(acte) }}</dd>
   {% if acte.url_image | lien_sur %}<dt>Image</dt><dd><a href="{{ acte.url_image | lien_sur }}" target="_blank" rel="noopener noreferrer">voir l'original</a></dd>{% endif %}
 </dl>

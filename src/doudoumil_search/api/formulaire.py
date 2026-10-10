@@ -22,7 +22,11 @@ from doudoumil_search.search.requete import (
 )
 
 PAR_PAGE: Final = 20
-SOURCES: Final = {"insee_deces": "Décès INSEE (depuis 1970)", "socface": "Recensements"}
+SOURCES: Final = {
+    "insee_deces": "Décès INSEE (depuis 1970)",
+    "socface": "Recensements",
+    "releve": "Relevés",
+}
 
 
 class FormulaireInvalide(ValueError):

@@ -322,7 +322,8 @@ def test_calibre_avec_les_verdicts(
         _envoyer(client, mention, "oui", requete=requete)
     capsys.readouterr()
     assert main(["--donnees", str(racine), "calibre", "--cas", "6"]) == 0
-    assert "6 synthétiques, 1 verdicts réels" in capsys.readouterr().out
+    # 6 cas par source : 6 décès, et les 3 personnes nommées du ménage recensé
+    assert "9 synthétiques, 1 verdicts réels" in capsys.readouterr().out
 
 
 @pytest.mark.parametrize(

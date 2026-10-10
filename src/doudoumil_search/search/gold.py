@@ -97,8 +97,14 @@ def construire_gold(
     actes = [str(silver / s / "actes.parquet") for s in sources]
     mentions = [str(silver / s / "mentions.parquet") for s in sources]
     with duckdb.connect(str(temporaire)) as base:
-        base.execute("CREATE TABLE actes AS SELECT * FROM read_parquet(?)", [actes])
-        base.execute("CREATE TABLE mentions AS SELECT * FROM read_parquet(?)", [mentions])
+        # union_by_name : une source normalisée avant l'ajout d'une colonne reste lisible
+        base.execute(
+            "CREATE TABLE actes AS SELECT * FROM read_parquet(?, union_by_name = true)", [actes]
+        )
+        base.execute(
+            "CREATE TABLE mentions AS SELECT * FROM read_parquet(?, union_by_name = true)",
+            [mentions],
+        )
         _table_lieux(base, referentiel)
         base.execute(_SQL_PERSONNES)
         _table_prenoms(base)

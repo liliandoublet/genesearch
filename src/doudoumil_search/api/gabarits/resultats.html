@@ -42,7 +42,7 @@
           <a class="nom" href="/actes/{{ r.acte_id }}?mention={{ r.mention_id }}&amp;retour={{ retour | urlencode }}&amp;requete={{ requete_json | urlencode }}">
             {{ identite(f) }}{% if f.sexe %} <span class="sexe">({{ f.sexe }})</span>{% endif %}</a>
           <p>{{ naissance(f) }}{% if naissance(f) %} · {% endif %}{{ evenement(f) }}{% if roles.get(r.role) %} · {{ roles.get(r.role) }}{% endif %}</p>
-          <p class="meta">{{ noms_sources.get(r.source, r.source) }} · {{ provenance(f) }}
+          <p class="meta">{{ f.titre_source or noms_sources.get(r.source, r.source) }} · {{ provenance(f) }}
             {% if f.url_image | lien_sur %}· <a href="{{ f.url_image | lien_sur }}" target="_blank" rel="noopener noreferrer">image</a>{% endif %}
             {% for canal in r.canaux %}<span class="canal">{{ canal }}</span>{% endfor %}
             {% if r.nom_epouse_probable %}<span class="canal epouse">nom d'épouse probable</span>{% endif %}

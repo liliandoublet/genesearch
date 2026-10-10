@@ -86,7 +86,7 @@ COLONNES_FICHE_MENTION: Final = (
 )
 COLONNES_FICHE_ACTE: Final = (
     "acte_id, source, type, annee, date_acte, commune_code_insee, commune_label, departement, "
-    "depot, cote, vue, url_image"
+    "depot, cote, vue, url_image, titre_source"
 )
 SELECTION: Final = ", ".join(f"p.{c}" for c in COLONNES_PERSONNES)
 SELECTION_PRENOMS: Final = ", ".join(f"q.{c}" for c in COLONNES_PERSONNES)

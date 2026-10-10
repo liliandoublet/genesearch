@@ -151,6 +151,8 @@ trois canaux indépendants, puis les classe tous avec le même score :
   - date partielle INSEE (jour ou mois à `00`) → l'année est conservée ; la date brute est
     gardée telle quelle dans `date_naissance_brute` ;
   - âge révolu `A` dans un acte de l'année `Y` → `[Y − A − 1, Y − A]` ;
+  - sujet d'un acte de naissance ou de baptême de l'année `Y` → `[Y, Y]`, ou `[Y − 1, Y]` si
+    l'acte est de janvier ou sans date complète (enfant né fin décembre) ;
   - aucune information → intervalle vide (`None`).
 - Une tolérance propre à chaque source s'ajoute à la comparaison : ±1 an pour INSEE, ±2 ans
   pour les recensements, dont les âges sont souvent arrondis ou estimés. Valeurs de départ à
@@ -511,15 +513,37 @@ naissances de sa commune pour l'année probable.
 
 **Objectif** : élargir la couverture aux sources ouvertes restantes et à tes propres relevés.
 
-- [ ] Évolution du pivot : nouvelles valeurs de `Source` (morts pour la France, registres
-  matricules, relevé) et de `TypeActe` si nécessaire (fiche militaire, matricule)
+- [~] Évolution du pivot : nouvelles valeurs de `Source` (morts pour la France, registres
+  matricules, relevé) et de `TypeActe` si nécessaire (fiche militaire, matricule) — fait pour
+  les relevés (`Source.RELEVE`, `Acte.titre_source`)
 - [ ] Connecteur **Morts pour la France 1914-1918** (Mémoire des hommes)
 - [ ] Connecteur **registres matricules** (Base de noms), selon l'accès obtenu au préalable P
-- [ ] **Connecteur de relevés** : n'importe quel CSV ou tableur, avec un fichier de
+- [x] **Connecteur de relevés** : n'importe quel CSV ou tableur, avec un fichier de
   correspondance des colonnes (`releves/<nom>.toml`) vers le pivot ; provenance et
-  `confiance_source` indiquées dans ce fichier
-- [ ] Calibration de chaque nouvelle source (R5)
-- [ ] Filtres par source dans l'interface et dans la CLI
+  `confiance_source` indiquées dans ce fichier (`ingest/releves.py`, `docs/releves.md`)
+- [x] Calibration de chaque nouvelle source (R5) : tirage des cas d'évaluation **par source**
+- [x] Filtres par source dans l'interface et dans la CLI (source « Relevés », `--source releve`)
+
+**Décisions tranchées**
+- Correspondance en TOML (lu par `tomllib`, sans dépendance) : chaque information est une
+  constante ou une colonne, avec `valeurs` (codes du relevé), `defaut` et `format` de date.
+  Noms de colonnes comparés sans casse, accents ni espaces ; clés inconnues refusées (fautes de
+  frappe) ; colonnes absentes signalées avec la liste des colonnes du tableur.
+- Tableurs : CSV (encodage UTF-8, sinon Windows-1252 ; séparateur deviné) avec le module `csv`,
+  Excel et OpenDocument avec `fastexcel`, cellules lues en texte.
+- Une ligne = un acte ; une mention par personne nommée. Une personne dont seules les colonnes
+  partagées avec une personne précédente sont remplies (nom du père repris de l'enfant) est
+  ignorée. Sexe déduit du rôle pour les parents et les époux.
+- Identifiants : nom du fichier TOML + colonnes `cle` (défaut : numéro de ligne) ; une clé
+  répétée reçoit un numéro d'ordre. Rangement : `data/releves/` (fichiers de l'utilisateur, à
+  sauvegarder), partition bronze `releve/<nom>/`.
+- Silver : code de la commune de l'acte déduit de son nom s'il est unique (dans le département
+  s'il est connu) ; naissance du sujet d'un baptême ou d'une naissance déduite de l'année de
+  l'acte (R3).
+- `doudoumil ingest releve --modele TABLEUR` prépare la correspondance d'après les noms de
+  colonnes ; elle ne remplace jamais un fichier existant.
+- Évaluation et calibration : `--cas` compte désormais les cas **par source**, pour qu'un petit
+  relevé ait ses propres exemples à côté de 25 M de décès.
 
 **Démo** : un poilu retrouvé dans la base des Morts pour la France, puis dans le recensement
 de 1911 de sa commune.
@@ -550,9 +574,11 @@ candidats pour chacun. Ton arbre lui-même reste géré par ton code.
 
 ## Jalon 10 — Finitions
 
-- [ ] Commande unique `doudoumil pipeline` (téléchargement → bronze → silver → gold)
+- [ ] Commande unique `doudoumil pipeline` (téléchargement → bronze → silver → gold), relevés
+  compris
 - [ ] Mise à jour mensuelle d'INSEE décès sans tout reconstruire
-- [ ] Sauvegarde et restauration de « Mes trouvailles »
+- [ ] Sauvegarde et restauration de « Mes trouvailles » et des relevés (`data/perso/`,
+  `data/releves/`)
 - [ ] README complet : installation, place disque nécessaire, ajout d'une source, exemples
 - [ ] Journalisation homogène et messages d'erreur en français
 

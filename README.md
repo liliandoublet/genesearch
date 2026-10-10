@@ -52,6 +52,8 @@ Tout est écrit sous `data/`, qui n'est pas versionné :
 | `data/bronze/` | fichiers sources tels que téléchargés, et leur conversion au format pivot sans normalisation |
 | `data/silver/` | Parquet pivot avec les champs normalisés (`nom_norm`, `nom_phonetique`…) |
 | `data/gold/` | base DuckDB indexée pour la recherche |
+| `data/releves/` | tes relevés (tableurs et fichiers de correspondance) : à sauvegarder |
+| `data/perso/` | tes trouvailles (favoris, notes, verdicts) : à sauvegarder |
 
 Une couche ne modifie jamais la précédente : chaque étape produit de nouveaux fichiers.
 
@@ -143,6 +145,36 @@ uv run doudoumil serve        # ouvre http://127.0.0.1:8765 dans le navigateur
 L'interface n'écoute que sur la machine (`127.0.0.1`) et refuse les envois venus d'un autre
 site.
 
+### Jalon 8 — relevés en CSV ou Excel
+
+N'importe quel tableur de relevés (cercle généalogique, dépouillements personnels) s'importe
+grâce à un petit fichier qui décrit ses colonnes ; mode d'emploi dans
+[`docs/releves.md`](docs/releves.md).
+
+```bash
+cp bms-landerneau.csv data/releves/
+uv run doudoumil ingest releve --modele data/releves/bms-landerneau.csv  # prépare le .toml
+uv run doudoumil ingest releve      # après relecture du .toml
+uv run doudoumil normalize releve && uv run doudoumil index
+uv run doudoumil cherche "LE GOF Marie" --naissance 1755 --limite 2
+```
+
+Avec le relevé d'essai `tests/fixtures/releves/` (données inventées) :
+
+```
+landerneau-bms.csv : 7 ingérées, 3 rejetées (date de l'acte incomplète : 1, sexe inconnu : 1,
+  clé en double (numéro d'ordre ajouté) : 1, âge illisible : 1)
+  lignes rejetées et motifs : data/bronze/releve/landerneau-bms/rejets.csv
+  1. non calibré (score 0,89) — LE GOFF Marie Josèphe (F), née en 1755, baptême le 02/03/1755 à Landerneau (29)
+     AD 29 · 3 E 103/2 · vue 12   [noms proches, phonétique]
+  2. non calibré (score 0,68) — LE GOFF Jean (M), né en 1756, baptême le 15/07/1756 à Landerneau (29)
+     AD 29 · 3 E 103/2 · vue 27   [noms proches, phonétique]
+```
+
+La commune « Landerneau » est rattachée à son code INSEE à la normalisation, et l'année de
+naissance d'un baptisé est déduite de la date du baptême. La fiche et la citation reprennent le
+titre du relevé ; les verdicts sur ces notices calibrent la source « Relevés ».
+
 ## Arborescence
 
 ```
@@ -150,7 +182,7 @@ src/doudoumil_search/
 ├── pivot.py        # modèle pivot (Acte, Mention) et fabriquer_id()
 ├── schemas.py      # schémas Parquet
 ├── cli.py          # commande doudoumil
-├── ingest/         # connecteurs (INSEE décès) et téléchargement
+├── ingest/         # connecteurs (INSEE décès, relevés CSV/Excel) et téléchargement
 ├── normalize/      # noms, prénoms, clé phonétique, dates, lieux, étape silver
 ├── search/         # base gold, moteur, score, calibration, évaluation
 ├── api/            # interface web locale : pages, trouvailles, API JSON

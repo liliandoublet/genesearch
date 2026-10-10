@@ -34,3 +34,8 @@ def dossier_referentiels(racine: Path | None = None) -> Path:
 def dossier_perso(racine: Path | None = None) -> Path:
     """Données personnelles (trouvailles) : jamais reconstruites, à sauvegarder."""
     return (racine or dossier_donnees()) / "perso"
+
+
+def dossier_releves(racine: Path | None = None) -> Path:
+    """Relevés fournis par l'utilisateur (tableurs et correspondances) : à sauvegarder."""
+    return (racine or dossier_donnees()) / "releves"

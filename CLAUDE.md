@@ -49,11 +49,13 @@ régénère `tests/fixtures/deces-extrait.txt`. Un test qui pend échoue au bout
 src/doudoumil_search/
 ├── pivot.py      # Acte, Mention, énumérations, fabriquer_id()
 ├── schemas.py    # SCHEMA_ACTES, SCHEMA_MENTIONS, vers_dataframe()
-├── config.py     # dossiers data/ (ou $DOUDOUMIL_DATA) : bronze, silver, gold, ref
+├── config.py     # dossiers data/ (ou $DOUDOUMIL_DATA) : bronze, silver, gold, ref, perso, releves
 ├── cli.py        # commande `doudoumil` (argparse)
 ├── ingest/       # sources → bronze                (jalons 2, 6, 8)
+│   ├── commun.py          # rejets, bilan d'ingestion, motifs de codes géographiques
 │   ├── ecriture.py        # partition bronze écrite par lots, publiée d'un bloc
 │   ├── insee_deces.py     # connecteur INSEE décès (largeur fixe)
+│   ├── releves.py         # relevés CSV/Excel + correspondance TOML, modèle prérempli
 │   └── telechargement.py  # catalogue data.gouv.fr, reprise, somme de contrôle
 ├── normalize/    # bronze → silver                 (jalon 3)
 │   ├── texte.py           # majuscules ASCII, découpage en mots
@@ -88,11 +90,13 @@ src/doudoumil_search/
 - **Jalons terminés** : 0 (socle), 1 (modèle pivot), 2 (ingestion INSEE décès), 3
   (normalisation → silver), 4 (base gold et recherche), 5 (interface web locale), sous réserve
   de la vérification sur de vrais fichiers INSEE.
-- **Jalon en cours** : aucun — prochain : **jalon 6, recensements Socface**, bloqué par le
-  préalable P (aucun export en masse connu). Le jalon 7 (images et localisateur de
-  registres) dépend aussi du préalable P (motifs d'adresses et IIIF des AD).
-- **Prochaine action** : l'utilisateur envoie la demande d'export Socface
-  (`docs/demande-export-socface.md`) ; dès que data.gouv.fr est accessible, ingérer les vrais
+- **Jalon en cours** : 8 en partie — **connecteur de relevés terminé** ; Morts pour la France
+  et registres matricules attendent le préalable P. Jalons 6 (Socface) et 7 (images,
+  localisateur de registres) bloqués par le préalable P. Ensuite : jalon 10 (commande unique
+  `doudoumil pipeline`, sauvegarde de `data/perso/` et `data/releves/`).
+- **Prochaine action** : jalon 10 (pipeline, sauvegarde) ; côté utilisateur : envoyer la
+  demande d'export Socface (`docs/demande-export-socface.md`), essayer un vrai relevé avec
+  `doudoumil ingest releve --modele` ; dès que data.gouv.fr est accessible, ingérer les vrais
   fichiers INSEE pour vérifier le format, lancer `doudoumil calibre` et mesurer les
   performances sur les ≈ 25 M de décès.
 - **Accès réseau de l'environnement de développement** : data.gouv.fr et insee.fr sont
@@ -123,6 +127,12 @@ src/doudoumil_search/
   - Évaluation : `doudoumil evalue` (modes `requete` et `donnees`) ; non-régression en CI
     sur une population synthétique (`tests/population.py`), seuils dans
     `tests/test_evaluation.py`.
+  - Relevés (jalon 8, `docs/releves.md`) : tableur CSV/Excel décrit par `releves/<nom>.toml`
+    (constante ou `{ colonne, valeurs, defaut, format }`), une ligne = un acte ; identifiants
+    = nom du TOML + colonnes `cle` (défaut : n° de ligne) ; `Acte.titre_source` cité dans les
+    fiches ; en silver, code de commune déduit d'un nom unique et naissance du sujet d'un
+    baptême / d'une naissance déduite de l'année de l'acte (R3). `--cas` de `evalue` et
+    `calibre` compte les cas **par source** (calibration des petites sources).
   - Interface web : Jinja2 rendu serveur sans framework JS, recherches dans l'adresse (GET),
     `127.0.0.1` seulement, hôtes et origines vérifiés ; trouvailles dans
     `data/perso/trouvailles.sqlite`, à sauvegarder (jamais reconstruites) ; leurs verdicts
@@ -146,6 +156,12 @@ src/doudoumil_search/
 ## Journal des sessions
 
 Une ligne par session de travail, la plus récente en haut.
+
+- 2026-10-10 — Jalon 8 (relevés) : `Source.RELEVE`, `Acte.titre_source`, connecteur
+  `ingest/releves.py` (CSV et Excel, correspondance TOML vérifiée, modèle prérempli par
+  `doudoumil ingest releve --modele`), commune déduite de son nom et naissance déduite du
+  baptême en silver, libellés et citations dans l'interface, tirage d'évaluation par source,
+  `docs/releves.md`.
 
 - 2026-10-10 — Jalon 5 : interface web locale (`doudoumil serve`) : recherche simple et
   avancée, autocomplétion des lieux, filtres à compteurs, fiches d'actes avec citation,

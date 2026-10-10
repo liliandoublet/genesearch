@@ -10,8 +10,9 @@ Pour chaque source présente en bronze (``bronze/<source>/<partition>/``) :
    l'intervalle de naissance (règle R3). Les fonctions Python ne sont appelées qu'une fois par
    valeur distincte, puis le résultat est joint à la table : quelques millions de noms
    distincts au lieu de dizaines de millions de lignes.
-3. **Lieux**, si le référentiel des communes est disponible : nom de la commune de l'acte, et
-   code du lieu de naissance quand seul son nom est connu et qu'il désigne une seule commune.
+3. **Lieux**, si le référentiel des communes est disponible : code et nom de la commune de
+   l'acte, code du lieu de naissance ; un code n'est déduit d'un nom (relevés, lieux de
+   naissance) que s'il désigne une seule commune.
 
 Résultat : ``silver/<source>/actes.parquet`` et ``mentions.parquet``, écrits dans un dossier
 temporaire puis publiés d'un bloc. La couche bronze n'est jamais modifiée.
@@ -25,7 +26,10 @@ from pathlib import Path
 
 import polars as pl
 
-from doudoumil_search.normalize.dates import expressions_intervalle_naissance
+from doudoumil_search.normalize.dates import (
+    expressions_intervalle_naissance,
+    expressions_naissance_de_l_acte,
+)
 from doudoumil_search.normalize.lieux import Referentiel
 from doudoumil_search.normalize.noms import normaliser_nom
 from doudoumil_search.normalize.phonetique import cle_phonetique
@@ -127,8 +131,16 @@ def construire_source(
         mentions.select("prenoms_bruts").collect().to_series(),
         {"_prenoms_norm": normaliser_prenoms},
     )
-    annees_actes = actes.select("acte_id", pl.col("annee").alias("_annee_acte"))
+    annees_actes = actes.select(
+        "acte_id",
+        pl.col("annee").alias("_annee_acte"),
+        pl.col("type").alias("_type_acte"),
+        pl.col("date_acte").alias("_date_acte"),
+    )
     mini, maxi = expressions_intervalle_naissance(pl.col("_annee_acte"))
+    mini_acte, maxi_acte = expressions_naissance_de_l_acte(
+        pl.col("_type_acte"), pl.col("role"), pl.col("_annee_acte"), pl.col("_date_acte")
+    )
     mentions = (
         mentions.join(noms.lazy(), on="nom_brut", how="left")
         .join(prenoms.lazy(), on="prenoms_bruts", how="left")
@@ -139,6 +151,10 @@ def construire_source(
             pl.col("_prenoms_norm").alias("prenoms_norm"),
             mini,
             maxi,
+        )
+        .with_columns(
+            pl.coalesce("annee_naissance_min", mini_acte).alias("annee_naissance_min"),
+            pl.coalesce("annee_naissance_max", maxi_acte).alias("annee_naissance_max"),
         )
     )
 
@@ -181,7 +197,33 @@ def construire_source(
 def _completer_lieux(
     actes: pl.LazyFrame, mentions: pl.LazyFrame, referentiel: Referentiel
 ) -> tuple[pl.LazyFrame, pl.LazyFrame]:
-    """Nom de la commune de l'acte ; code du lieu de naissance déduit d'un nom sans ambiguïté."""
+    """Code et nom de la commune de l'acte ; code du lieu de naissance déduit de son nom.
+
+    Un code n'est déduit d'un nom que s'il désigne une seule commune (dans le département de
+    l'acte, s'il est connu) : un relevé ne donne souvent que le nom de la paroisse.
+    """
+    sans_code = (
+        actes.filter(pl.col("commune_code_insee").is_null() & pl.col("commune_label").is_not_null())
+        .select("commune_label", "departement")
+        .unique()
+        .collect()
+    )
+    deduits: list[tuple[str | None, str | None]] = []
+    for nom, departement in sans_code.iter_rows():
+        codes = referentiel.codes_du_nom(nom, departement)
+        commune = referentiel.commune(next(iter(codes))) if len(codes) == 1 else None
+        deduits.append((commune.code, commune.departement) if commune else (None, None))
+    sans_code = sans_code.with_columns(
+        pl.Series("_code_acte", [c for c, _ in deduits], dtype=pl.String),
+        pl.Series("_departement_acte", [d for _, d in deduits], dtype=pl.String),
+    )
+    actes = actes.join(
+        sans_code.lazy(), on=["commune_label", "departement"], how="left", nulls_equal=True
+    ).with_columns(
+        pl.coalesce("commune_code_insee", "_code_acte").alias("commune_code_insee"),
+        pl.coalesce("departement", "_departement_acte").alias("departement"),
+    )
+
     communes = _table_de_correspondance(
         actes.select("commune_code_insee").collect().to_series(), {"_libelle": referentiel.nom}
     )

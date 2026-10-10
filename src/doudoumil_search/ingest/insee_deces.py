@@ -26,16 +26,21 @@ défauts (code de lieu invalide, date de naissance incomplète) sont tolérés e
 """
 
 import logging
-import re
 from collections import Counter
 from collections.abc import Iterator
-from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Final
 
 from pydantic import ValidationError
 
+from doudoumil_search.ingest.commun import (
+    MOTIF_CODE_LIEU,
+    LigneRejetee,
+    RapportIngestion,
+    departement_de,
+    motif_validation,
+)
 from doudoumil_search.ingest.ecriture import EcrivainPartition
 from doudoumil_search.pivot import (
     Acte,
@@ -67,25 +72,6 @@ CHAMPS: Final = (
 )
 
 SEXES: Final = {"1": Sexe.M, "2": Sexe.F}
-
-# Même motif que le type CodeInsee du pivot.
-MOTIF_CODE_LIEU: Final = re.compile(r"\d[\dAB]\d{3}")
-
-
-class LigneRejetee(ValueError):
-    """Ligne inexploitable ; le message est le motif enregistré dans ``rejets.csv``."""
-
-
-@dataclass
-class RapportIngestion:
-    """Bilan de l'ingestion d'un fichier."""
-
-    fichier: str
-    dossier: Path
-    lignes_lues: int = 0
-    lignes_ingerees: int = 0
-    lignes_rejetees: int = 0
-    anomalies: Counter[str] = field(default_factory=Counter)
 
 
 def decouper_ligne(ligne: str) -> dict[str, str]:
@@ -125,13 +111,6 @@ def lire_annee(brute: str) -> int | None:
     if len(brute) != 8 or not brute.isdigit() or brute[:4] == "0000":
         return None
     return int(brute[:4])
-
-
-def departement_de(code_lieu: str) -> str:
-    """Département d'un code de lieu : 3 caractères outre-mer, ``99`` pour l'étranger."""
-    if code_lieu.startswith(("97", "98")):
-        return code_lieu[:3]
-    return code_lieu[:2]
 
 
 def cle_naturelle(champs: dict[str, str]) -> tuple[str, ...]:
@@ -230,13 +209,6 @@ def _code_valide(code: str, libelle: str, anomalies: Counter[str]) -> str | None
     return None
 
 
-def _motif(erreur: ValidationError) -> str:
-    """Motif court d'un refus de validation : le premier champ en cause."""
-    premiere = erreur.errors()[0]
-    champ = ".".join(str(partie) for partie in premiere["loc"]) or "modèle"
-    return f"validation : {champ} ({premiere['msg']})"
-
-
 def lire_lignes(chemin: Path) -> Iterator[tuple[int, str]]:
     """Lit le fichier ligne à ligne, numérotées à partir de 1.
 
@@ -276,7 +248,9 @@ def ingerer_fichier(
                     champs, chemin.name, numero, ingested_at, rapport.anomalies
                 )
             except (LigneRejetee, ValidationError) as erreur:
-                motif = str(erreur) if isinstance(erreur, LigneRejetee) else _motif(erreur)
+                motif = (
+                    str(erreur) if isinstance(erreur, LigneRejetee) else motif_validation(erreur)
+                )
                 ecrivain.rejeter(numero, motif, ligne.rstrip("\r\n"))
                 rapport.lignes_rejetees += 1
                 continue

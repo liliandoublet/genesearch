@@ -24,6 +24,7 @@ SCHEMA_ACTES = pl.Schema(
         "cote": pl.String,
         "vue": pl.String,
         "url_image": pl.String,
+        "titre_source": pl.String,
         "ingested_at": pl.Datetime("us", "UTC"),
     }
 )

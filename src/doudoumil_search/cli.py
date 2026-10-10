@@ -6,6 +6,8 @@ Exemples ::
     doudoumil telecharge communes          # référentiel des communes
     doudoumil ingest insee                 # tous les fichiers téléchargés
     doudoumil ingest insee deces-2020.txt  # un fichier précis
+    doudoumil ingest releve --modele data/releves/bapteme.csv  # prépare la correspondance
+    doudoumil ingest releve                # tous les relevés de data/releves/
     doudoumil normalize                    # bronze → silver
     doudoumil index                        # silver → gold (base de recherche)
     doudoumil cherche "LE GOFF Marie" --naissance 1930-1932 --lieu Quimper
@@ -31,9 +33,11 @@ from doudoumil_search.config import (
     dossier_gold,
     dossier_perso,
     dossier_referentiels,
+    dossier_releves,
     dossier_silver,
 )
-from doudoumil_search.ingest import insee_deces, telechargement
+from doudoumil_search.ingest import insee_deces, releves, telechargement
+from doudoumil_search.ingest.commun import RapportIngestion
 from doudoumil_search.normalize import lieux, silver
 from doudoumil_search.pivot import Source
 from doudoumil_search.search import evaluation, gold
@@ -236,7 +240,7 @@ def commande_serve(args: argparse.Namespace) -> int:
     return 0
 
 
-def _ingerer(chemin: Path, bronze: Path) -> insee_deces.RapportIngestion:
+def _ingerer(chemin: Path, bronze: Path) -> RapportIngestion:
     return insee_deces.ingerer_fichier(chemin, bronze)
 
 
@@ -257,11 +261,58 @@ def commande_ingest_insee(args: argparse.Namespace) -> int:
         with ProcessPoolExecutor(max_workers=args.processus, mp_context=contexte) as executeur:
             rapports = list(executeur.map(_ingerer, fichiers, [bronze] * len(fichiers)))
     for rapport in rapports:
-        detail = ", ".join(f"{motif} : {n}" for motif, n in rapport.anomalies.most_common())
-        print(
-            f"{rapport.fichier} : {rapport.lignes_ingerees} ingérées, "
-            f"{rapport.lignes_rejetees} rejetées" + (f" ({detail})" if detail else "")
+        afficher_rapport(rapport)
+    return 0
+
+
+def afficher_rapport(rapport: RapportIngestion) -> None:
+    detail = ", ".join(f"{motif} : {n}" for motif, n in rapport.anomalies.most_common())
+    print(
+        f"{rapport.fichier} : {rapport.lignes_ingerees} ingérées, "
+        f"{rapport.lignes_rejetees} rejetées" + (f" ({detail})" if detail else "")
+    )
+    if rapport.lignes_rejetees:
+        print(f"  lignes rejetées et motifs : {rapport.dossier / 'rejets.csv'}")
+
+
+def commande_ingest_releve(args: argparse.Namespace) -> int:
+    if args.modele is not None:
+        return _preparer_correspondance(args.modele, args.feuille)
+    dossier = dossier_releves(args.donnees)
+    fichiers: list[Path] = args.fichiers or sorted(dossier.glob("*.toml"))
+    if not fichiers:
+        journal.error(
+            "aucun relevé : placez le tableur dans %s et préparez sa correspondance avec "
+            "« doudoumil ingest releve --modele TABLEUR » (voir docs/releves.md)",
+            dossier,
         )
+        return 1
+    bronze = dossier_bronze(args.donnees)
+    code = 0
+    for fichier in fichiers:
+        try:
+            rapport = releves.ingerer_releve(fichier, bronze)
+        except (releves.CorrespondanceInvalide, OSError) as erreur:
+            journal.error("%s : %s", fichier.name, erreur)
+            code = 1
+            continue
+        afficher_rapport(rapport)
+    return code
+
+
+def _preparer_correspondance(tableur: Path, feuille: str | None) -> int:
+    chemin = tableur.with_suffix(".toml")
+    if chemin.exists():
+        journal.error("%s existe déjà : supprimez-le pour en préparer un nouveau", chemin)
+        return 1
+    try:
+        texte = releves.modele_correspondance(tableur, feuille)
+    except (releves.CorrespondanceInvalide, OSError) as erreur:
+        journal.error("%s", erreur)
+        return 1
+    chemin.write_text(texte, encoding="utf-8")
+    print(f"correspondance préparée : {chemin}")
+    print("relisez-la (titre, type d'acte, commune), puis lancez « doudoumil ingest releve »")
     return 0
 
 
@@ -296,6 +347,20 @@ def construire_analyseur() -> argparse.ArgumentParser:
         "--processus", type=int, default=None, help="fichiers traités en parallèle"
     )
     i_insee.set_defaults(fonction=commande_ingest_insee)
+    i_releve = sources_ingest.add_parser(
+        "releve", help="relevé en CSV ou Excel, décrit par un fichier de correspondance"
+    )
+    i_releve.add_argument(
+        "fichiers", nargs="*", type=Path, help="correspondances .toml (défaut : data/releves/)"
+    )
+    i_releve.add_argument(
+        "--modele",
+        type=Path,
+        metavar="TABLEUR",
+        help="préparer la correspondance d'un tableur d'après ses colonnes",
+    )
+    i_releve.add_argument("--feuille", help="avec --modele : feuille du classeur Excel")
+    i_releve.set_defaults(fonction=commande_ingest_releve)
 
     normalize = commandes.add_parser("normalize", help="construire la couche silver")
     normalize.add_argument(
@@ -323,7 +388,9 @@ def construire_analyseur() -> argparse.ArgumentParser:
     evalue = commandes.add_parser("evalue", help="mesurer la qualité de la recherche")
     calibre = commandes.add_parser("calibre", help="calibrer le score en probabilité")
     for sous in (evalue, calibre):
-        sous.add_argument("--cas", type=int, default=300, help="nombre de requêtes de test")
+        sous.add_argument(
+            "--cas", type=int, default=300, help="nombre de requêtes de test par source"
+        )
         sous.add_argument("--taux", type=float, default=0.2, help="taux d'erreurs simulées")
         sous.add_argument("--graine", type=int, default=1, help="graine du tirage au hasard")
     evalue.add_argument("--mode", choices=("requete", "donnees"), default="requete")

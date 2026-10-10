@@ -139,23 +139,33 @@ class Mesures:
 
 
 def tirer_notices(chemin_gold: Path, nombre: int, graine: int) -> list[dict[str, Any]]:
-    """Notices tirées au hasard (reproductible), parmi celles qui ont un nom et un prénom."""
+    """Notices tirées au hasard (reproductible), ``nombre`` par source, parmi celles qui ont un
+    nom et un prénom.
+
+    Le tirage par source donne à chacune assez d'exemples pour sa calibration : un relevé de
+    quelques milliers de notices serait sinon absent d'un tirage parmi 25 millions de décès.
+    """
+    lignes: list[dict[str, Any]] = []
     with duckdb.connect(str(chemin_gold), read_only=True) as base:
         base.execute("SET threads TO 1")  # tirage reproductible d'une exécution à l'autre
-        curseur = base.execute(
-            f"""
-            SELECT * FROM (
-                SELECT mention_id, source, nom_norm, prenoms_norm, sexe, annee,
-                       annee_naissance_min, annee_naissance_max,
-                       commune_actuelle, departement, naissance_actuelle, naissance_departement
-                FROM personnes
-                WHERE nom_norm IS NOT NULL AND prenoms_norm IS NOT NULL
-                ORDER BY mention_id
-            ) USING SAMPLE reservoir({int(nombre)} ROWS) REPEATABLE ({int(graine)})
-            """
-        )
-        colonnes = [d[0] for d in curseur.description]
-        lignes = [dict(zip(colonnes, ligne, strict=True)) for ligne in curseur.fetchall()]
+        sources = base.execute("SELECT DISTINCT source FROM personnes ORDER BY source").fetchall()
+        for (source,) in sources:
+            curseur = base.execute(
+                f"""
+                SELECT * FROM (
+                    SELECT mention_id, source, nom_norm, prenoms_norm, sexe, annee,
+                           annee_naissance_min, annee_naissance_max,
+                           commune_actuelle, departement, naissance_actuelle,
+                           naissance_departement
+                    FROM personnes
+                    WHERE source = ? AND nom_norm IS NOT NULL AND prenoms_norm IS NOT NULL
+                    ORDER BY mention_id
+                ) USING SAMPLE reservoir({int(nombre)} ROWS) REPEATABLE ({int(graine)})
+                """,
+                [source],
+            )
+            colonnes = [d[0] for d in curseur.description]
+            lignes += [dict(zip(colonnes, ligne, strict=True)) for ligne in curseur.fetchall()]
     return sorted(lignes, key=lambda ligne: ligne["mention_id"])
 
 
