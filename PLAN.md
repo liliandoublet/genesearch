@@ -358,8 +358,13 @@ chaque résultat portant un score calibré et sa provenance (voir R1 à R5).
   sur l'autre)
 - [x] Calibration par source enregistrée dans gold ; test de non-régression en CI (R5),
   sur une population synthétique dense de 6 000 personnes
-- [ ] Mesure des performances sur le fichier INSEE complet (≈ 25 M), dont la durée du canal B
-  (objectif : moins d'une seconde par requête)
+- [~] Mesure des performances sur le fichier INSEE complet (≈ 25 M), dont la durée du canal B
+  (objectif : moins d'une seconde par requête). **Mesuré sur 4 millions de décès
+  synthétiques** (4 cœurs, 15 Go de mémoire) : ingestion 59 s (4 processus), normalisation
+  22 s, indexation 70 s, base de 1,73 Go ; requêtes en 40 à 120 ms en médiane, 0,3 s au pire
+  (nom courant, nom mal orthographié, sans le nom, épouse avec conjoint). Extrapolation à
+  25 M : base d'environ 11 Go, requêtes sous la seconde. **Reste** à mesurer sur les vrais
+  fichiers
 
 **Décisions tranchées**
 - Base gold reconstruite entièrement à chaque `doudoumil index` (seule la calibration est
@@ -373,6 +378,10 @@ chaque résultat portant un score calibré et sa provenance (voir R1 à R5).
   `max(0, 1 − écart / (tolérance + 1))`.
 - Les petites tables de correspondance passent par un Parquet temporaire pour éviter la
   dépendance à `pyarrow`.
+- Table `prenoms` entièrement dénormalisée (toutes les colonnes de `personnes`) : relire des
+  candidats par identifiant oblige DuckDB à parcourir toute la table ; le canal C passe de
+  234 à 40 ms sur 4 M de personnes, pour une base 35 % plus grosse.
+- Fiches lues en deux temps (mentions, puis leurs actes), sans jointure sur toute la table.
 
 **Mesures sur données synthétiques** (40 % d'erreurs de lecture, mode `donnees`, 300 cas) :
 avec la clé phonétique seule, 83,7 % des bonnes notices sont présélectionnées ; avec le

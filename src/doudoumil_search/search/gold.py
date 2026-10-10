@@ -9,7 +9,11 @@ Tables, construites depuis toutes les sources de la couche silver :
     lieux ramenés à la commune actuelle. Triée par clé phonétique : DuckDB saute alors les
     blocs qui ne contiennent pas la clé cherchée (canal A).
 ``prenoms``
-    Un prénom par ligne, avec son rang et sa clé phonétique (canal C).
+    Un prénom par ligne, avec son rang, sa clé phonétique et **toutes** les colonnes de
+    ``personnes``, triée par clé puis département. Le canal C s'y résout en une seule lecture,
+    sans revenir à ``personnes`` : relire quelques candidats par leur identifiant oblige DuckDB
+    à parcourir toute la table, et coûtait sept fois plus cher que la place gagnée (mesuré sur
+    4 millions de personnes : 234 ms contre 33 ms, pour une base 35 % plus grosse).
 ``noms``
     Les noms normalisés distincts et leur nombre d'occurrences (canal B).
 ``calibration``
@@ -215,9 +219,11 @@ def _table_prenoms(base: duckdb.DuckDBPyConnection) -> None:
     base.execute(
         """
         CREATE TABLE prenoms AS
-        SELECT e.mention_id, e.rang, e.prenom, c.resultat AS cle
-        FROM prenoms_eclates e JOIN cles_prenoms c ON c.valeur = e.prenom
-        ORDER BY cle
+        SELECT c.resultat AS cle, e.rang, e.prenom, p.*
+        FROM prenoms_eclates e
+        JOIN cles_prenoms c ON c.valeur = e.prenom
+        JOIN personnes p ON p.mention_id = e.mention_id
+        ORDER BY cle, p.departement
         """
     )
 

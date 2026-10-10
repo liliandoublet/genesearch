@@ -109,6 +109,9 @@ src/doudoumil_search/
   - Recherche : canaux A (phonétique), B (noms proches dans la table `noms`), C (prénom +
     naissance + département), conjoint ; score en Python (`search/score.py`), poids
     0,35/0,30/0,20/0,15, neutre 0,5 ; calibration isotone par source dans la base gold.
+  - Performances (4 M de décès synthétiques) : requêtes en 40 à 120 ms en médiane ; table
+    `prenoms` dénormalisée pour le canal C. Ne pas relire `personnes` par listes
+    d'identifiants : DuckDB parcourt alors toute la table.
   - Évaluation : `doudoumil evalue` (modes `requete` et `donnees`) ; non-régression en CI
     sur une population synthétique (`tests/population.py`), seuils dans
     `tests/test_evaluation.py`.
@@ -134,8 +137,9 @@ Une ligne par session de travail, la plus récente en haut.
 
 - 2026-10-10 — Jalon 4 : base gold DuckDB, moteur à trois canaux plus conjoint, score R2-R5,
   calibration isotone, évaluation (bruit de transcription, modes requete/donnees),
-  commandes `index`, `cherche`, `evalue`, `calibre`, non-régression en CI. Mesure : sur
-  données bruitées à 40 %, le canal B porte la présélection de 83,7 % à 100 %.
+  commandes `index`, `cherche`, `evalue`, `calibre`, non-régression en CI. Mesures : sur
+  données bruitées à 40 %, le canal B porte la présélection de 83,7 % à 100 % ; sur 4 M de
+  décès synthétiques, requêtes en 40 à 120 ms après dénormalisation de `prenoms`.
 
 - 2026-10-10 — Jalon 3 : normalisation des noms, prénoms (table d'équivalences), clé
   phonétique, intervalles de naissance, référentiel des communes (Etalab), étape silver avec

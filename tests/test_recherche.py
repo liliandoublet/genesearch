@@ -138,11 +138,16 @@ def test_contenu_de_la_base(base: Path) -> None:
             "SELECT occurrences FROM noms WHERE nom_norm = 'LE GOFF'"
         ).fetchone() == (3,)
         prenoms = connexion.execute(
-            "SELECT rang, prenom, cle FROM prenoms p JOIN personnes USING (mention_id) "
-            "WHERE nom_norm = 'MARTIN' AND p.prenom IN ('JEAN', 'PIERRE', 'LOUIS') "
+            "SELECT rang, prenom, cle, departement, naissance_departement FROM prenoms "
+            "WHERE mention_id IN (SELECT mention_id FROM personnes WHERE nom_norm = 'MARTIN') "
             "AND annee_naissance_min = 1925 ORDER BY rang"
         ).fetchall()
-        assert prenoms == [(1, "JEAN", "JN"), (2, "PIERRE", "PR"), (3, "LOUIS", "L")]
+        # champs de filtrage du canal C recopiés dans la table des prénoms
+        assert prenoms == [
+            (1, "JEAN", "JN", "13", "2A"),
+            (2, "PIERRE", "PR", "13", "2A"),
+            (3, "LOUIS", "L", "13", "2A"),
+        ]
 
 
 def test_base_absente(tmp_path: Path) -> None:

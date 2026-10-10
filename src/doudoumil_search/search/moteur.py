@@ -67,6 +67,7 @@ COLONNES_PERSONNES: Final = (
     "confiance_source",
 )
 SELECTION: Final = ", ".join(f"p.{c}" for c in COLONNES_PERSONNES)
+SELECTION_PRENOMS: Final = ", ".join(f"q.{c}" for c in COLONNES_PERSONNES)
 
 # Tolérance de naissance par source, en SQL ; les valeurs viennent du code, pas de l'utilisateur.
 _TOLERANCE_SQL: Final = (
@@ -130,23 +131,25 @@ class Moteur:
 
     # --- présélection -------------------------------------------------------------------
 
-    def _filtres(self, requete: Requete) -> tuple[list[str], list[Any]]:
+    def _filtres(self, requete: Requete, alias: str = "p") -> tuple[list[str], list[Any]]:
+        """Conditions communes à tous les canaux, sur la table désignée par ``alias``."""
         conditions: list[str] = []
         parametres: list[Any] = []
         if requete.sexe is not None:
-            conditions.append("(p.sexe = ? OR p.sexe IS NULL)")
+            conditions.append(f"({alias}.sexe = ? OR {alias}.sexe IS NULL)")
             parametres.append(requete.sexe.value)
         if requete.annees is not None:
-            conditions.append("p.annee BETWEEN ? AND ?")
+            conditions.append(f"{alias}.annee BETWEEN ? AND ?")
             parametres.extend(requete.annees)
         if requete.sources:
-            conditions.append(f"p.source IN ({', '.join('?' * len(requete.sources))})")
+            conditions.append(f"{alias}.source IN ({', '.join('?' * len(requete.sources))})")
             parametres.extend(requete.sources)
         if requete.naissance is not None:
+            tolerance_sql = _TOLERANCE_SQL.replace("p.source", f"{alias}.source")
             conditions.append(
-                "(p.annee_naissance_min IS NULL OR "
-                f"(p.annee_naissance_min <= ? + {_TOLERANCE_SQL} "
-                f"AND p.annee_naissance_max >= ? - {_TOLERANCE_SQL}))"
+                f"({alias}.annee_naissance_min IS NULL OR "
+                f"({alias}.annee_naissance_min <= ? + {tolerance_sql} "
+                f"AND {alias}.annee_naissance_max >= ? - {tolerance_sql}))"
             )
             parametres.extend([requete.naissance[1], requete.naissance[0]])
         return conditions, parametres
@@ -210,22 +213,26 @@ class Moteur:
         cles = sorted({c for p in requete.prenoms if (c := cle_phonetique(p))})
         if not cles:
             return []
-        conditions, parametres = self._filtres(requete)
+        # une seule lecture : la table des prénoms porte toutes les colonnes de personnes
+        conditions, parametres = self._filtres(requete, alias="q")
         departements = sorted(requete.lieu.departements)
         marques = ", ".join("?" * len(departements))
-        conditions += [
-            f"p.mention_id IN (SELECT mention_id FROM prenoms WHERE cle IN "
-            f"({', '.join('?' * len(cles))}))",
-            "p.annee_naissance_min IS NOT NULL",
-            f"(p.departement IN ({marques}) OR p.naissance_departement IN ({marques}))",
+        conditions = [
+            f"q.cle IN ({', '.join('?' * len(cles))})",
+            "q.annee_naissance_min IS NOT NULL",
+            f"(q.departement IN ({marques}) OR q.naissance_departement IN ({marques}))",
+            *conditions,
         ]
-        parametres += [*cles, *departements, *departements]
+        parametres = [*cles, *departements, *departements, *parametres]
         milieu = sum(requete.naissance) / 2
-        sql = (
-            f"SELECT {SELECTION} FROM personnes p WHERE {' AND '.join(conditions)} "
-            "ORDER BY abs((p.annee_naissance_min + p.annee_naissance_max) / 2 - ?), p.mention_id "
-            "LIMIT ?"
-        )
+        sql = f"""
+            SELECT * FROM (
+                SELECT DISTINCT ON (q.mention_id) {SELECTION_PRENOMS}
+                FROM prenoms q WHERE {" AND ".join(conditions)}
+            )
+            ORDER BY abs((annee_naissance_min + annee_naissance_max) / 2 - ?), mention_id
+            LIMIT ?
+        """
         return self._executer(sql, [*parametres, milieu, self.plafond])
 
     def candidats(self, requete: Requete) -> list[Candidat]:
@@ -314,16 +321,25 @@ class Moteur:
         """Champs d'affichage des mentions demandées : valeurs brutes et provenance."""
         if not mention_ids:
             return {}
-        lignes = self._executer(
+        # deux lectures par liste d'identifiants : une jointure parcourrait toute la table actes
+        mentions = self._executer(
             """
-            SELECT m.mention_id, m.nom_brut, m.prenoms_bruts, m.sexe, m.date_naissance,
-                   m.date_naissance_brute, m.annee_naissance_min, m.annee_naissance_max,
-                   m.lieu_naissance_brut, m.lieu_naissance_code_insee, m.age, m.profession,
-                   a.type, a.annee, a.date_acte, a.commune_code_insee, a.commune_label,
-                   a.departement, a.depot, a.cote, a.vue, a.url_image
-            FROM mentions m JOIN actes a USING (acte_id)
-            WHERE m.mention_id IN (SELECT unnest(?::VARCHAR[]))
+            SELECT mention_id, acte_id, nom_brut, prenoms_bruts, sexe, date_naissance,
+                   date_naissance_brute, annee_naissance_min, annee_naissance_max,
+                   lieu_naissance_brut, lieu_naissance_code_insee, age, profession
+            FROM mentions WHERE mention_id IN (SELECT unnest(?::VARCHAR[]))
             """,
             [mention_ids],
         )
-        return {ligne["mention_id"]: ligne for ligne in lignes}
+        actes = {
+            acte["acte_id"]: acte
+            for acte in self._executer(
+                """
+                SELECT acte_id, type, annee, date_acte, commune_code_insee, commune_label,
+                       departement, depot, cote, vue, url_image
+                FROM actes WHERE acte_id IN (SELECT unnest(?::VARCHAR[]))
+                """,
+                [sorted({m["acte_id"] for m in mentions})],
+            )
+        }
+        return {m["mention_id"]: {**actes.get(m["acte_id"], {}), **m} for m in mentions}
