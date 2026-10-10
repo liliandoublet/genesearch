@@ -48,3 +48,26 @@ def test_ingest_insee_fichiers_telecharges(tmp_path: Path) -> None:
 
 def test_ingest_insee_sans_fichier(tmp_path: Path) -> None:
     assert main(["--donnees", str(tmp_path), "ingest", "insee"]) == 1
+
+
+def test_normalize(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    racine = str(tmp_path)
+    assert main(["--donnees", racine, "ingest", "insee", str(FIXTURE)]) == 0
+    referentiel = tmp_path / "ref" / "communes"
+    shutil.copytree(Path(__file__).parent / "fixtures" / "communes", referentiel)
+    capsys.readouterr()
+    assert main(["--donnees", racine, "normalize"]) == 0
+    assert "insee_deces : 7 actes (1 doublons écartés), 7 mentions" in capsys.readouterr().out
+    actes = pl.read_parquet(tmp_path / "silver/insee_deces/actes.parquet")
+    assert "Rennes" in actes["commune_label"].to_list()
+
+
+def test_normalize_sans_referentiel(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    racine = str(tmp_path)
+    main(["--donnees", racine, "ingest", "insee", str(FIXTURE)])
+    assert main(["--donnees", racine, "normalize"]) == 0
+    assert "référentiel des communes absent" in caplog.text
+
+
+def test_normalize_bronze_vide(tmp_path: Path) -> None:
+    assert main(["--donnees", str(tmp_path), "normalize"]) == 1

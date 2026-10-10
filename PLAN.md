@@ -289,27 +289,43 @@ Parquet produit.
 **Objectif** : produire `data/silver/` avec `nom_norm`, `prenoms_norm`, `nom_phonetique`,
 les intervalles de naissance et des lieux ramenés au Code officiel géographique.
 
-- [ ] `normalize/noms.py` : majuscules, suppression des accents, des apostrophes et tirets
+- [x] `normalize/noms.py` : majuscules, suppression des accents, des apostrophes et tirets
   normalisés, particules (`LE`, `DE`, `D'`, `DU`, `LA`…) conservées mais normalisées, espaces
   multiples ; tests sur des cas réels (« LE GOFF », « D'HERVÉ », « LE-GOFF »)
-- [ ] `normalize/prenoms.py` : découpage des composés et table d'équivalences (R4)
-- [ ] `normalize/phonetique.py` : code phonétique adapté au français, appliqué aux noms et
+- [x] `normalize/prenoms.py` : découpage des composés et table d'équivalences (R4)
+- [x] `normalize/phonetique.py` : code phonétique adapté au français, appliqué aux noms et
   aux prénoms (canaux A et C de R1)
-- [ ] `normalize/dates.py` : calcul de `annee_naissance_min/max` depuis une date complète, une
+- [x] `normalize/dates.py` : calcul de `annee_naissance_min/max` depuis une date complète, une
   date partielle ou un âge (R3)
-- [ ] `normalize/lieux.py` : référentiel COG INSEE (communes actuelles + historique des
-  fusions et changements de nom) pour relier un libellé ancien à un code
-- [ ] Étape silver : lit bronze, écrit silver (nouveaux fichiers, bronze intact)
-- [ ] CLI : `doudoumil normalize`
-- [ ] Tests de propriétés : la normalisation est idempotente (`f(f(x)) == f(x)`)
+- [~] `normalize/lieux.py` : référentiel des communes (communes actuelles, déléguées et
+  associées, arrondissements, anciens codes) pour relier un code ou un libellé ancien à la
+  commune actuelle. **Reste** : les fusions anciennes sans commune déléguée ni ancien code
+  conservé, à compléter avec le fichier des mouvements de communes de l'INSEE (insee.fr
+  inaccessible depuis l'environnement de développement)
+- [x] Dédoublonnage en silver : la partition la plus récente l'emporte, doublons internes
+  gardés une fois ; partitions temporaires d'une ingestion interrompue ignorées
+- [x] Étape silver : lit bronze, écrit silver (nouveaux fichiers, bronze intact)
+- [x] CLI : `doudoumil normalize`
+- [x] Tests de propriétés : la normalisation est idempotente (`f(f(x)) == f(x)`)
 
-**Décisions**
-- Algorithme phonétique : Soundex français, Phonex, FONEM (pensé pour les patronymes
-  français) ou Beider-Morse ; à comparer sur un échantillon de variantes connues.
-- Livraison du référentiel COG : téléchargé à la demande dans `data/ref/` ou extrait versionné.
+**Décisions tranchées**
+- Algorithme phonétique : adaptation de Soundex2 (F. Brouard), sans troncature à quatre
+  caractères, `PH` → `F` partout, `Y` traité comme une voyelle, `H` muet supprimé avant les
+  voyelles. Comparé sur des groupes de variantes connues (tests) ; le figer impose de
+  reconstruire silver et gold à chaque changement. Les noms courts donnent des clés courtes
+  (`MOREAU`, `MARIE` et `MEYER` → `MR`) : le canal A devra trier ses candidats par
+  ressemblance avant de les plafonner (jalon 4).
+- Référentiel des communes : paquet `@etalab/decoupage-administratif` 6.0.0 (licence MIT,
+  données du COG), téléchargé à la demande depuis le registre npm dans `data/ref/communes/`
+  (`doudoumil telecharge communes`). Un extrait sert de fixture aux tests.
+- Lieux : un code ancien ou d'arrondissement renvoie la commune actuelle, mais garde son
+  propre libellé (« Béon » pour 01039) ; un lieu de naissance sans code reçoit un code
+  seulement si son nom désigne une seule commune.
+- Normalisation calculée une fois par valeur distincte, puis jointe : environ 150 000 lignes
+  par seconde, mesurées sur des données générées.
 
 **Démo** : avant/après sur quelques noms (`LE GOFF` / `Legoff` / `LE-GOFF` → même clé) et
-prénoms (`Jn Bte` → `JEAN BAPTISTE`).
+prénoms (`Jn Bte` → `JEAN BAPTISTE`) ; voir le README.
 
 ---
 

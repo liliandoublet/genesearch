@@ -37,6 +37,7 @@ faulthandler_timeout = 60
 
 [dependency-groups]
 dev = [
+    "hypothesis>=6.168.5",
     "pytest>=9.1.1",
     "ruff>=0.16.8",
 ]

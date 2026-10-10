@@ -1,0 +1,82 @@
+[
+ {
+  "code": "01",
+  "region": "84",
+  "chefLieu": "01053",
+  "nom": "Ain",
+  "typeLiaison": 5,
+  "zone": "metro"
+ },
+ {
+  "code": "13",
+  "region": "93",
+  "chefLieu": "13055",
+  "nom": "Bouches-du-Rhône",
+  "typeLiaison": 4,
+  "zone": "metro"
+ },
+ {
+  "code": "29",
+  "region": "53",
+  "chefLieu": "29232",
+  "nom": "Finistère",
+  "typeLiaison": 2,
+  "zone": "metro"
+ },
+ {
+  "code": "2A",
+  "region": "94",
+  "chefLieu": "2A004",
+  "nom": "Corse-du-Sud",
+  "typeLiaison": 3,
+  "zone": "metro"
+ },
+ {
+  "code": "35",
+  "region": "53",
+  "chefLieu": "35238",
+  "nom": "Ille-et-Vilaine",
+  "typeLiaison": 1,
+  "zone": "metro"
+ },
+ {
+  "code": "59",
+  "region": "32",
+  "chefLieu": "59350",
+  "nom": "Nord",
+  "typeLiaison": 2,
+  "zone": "metro"
+ },
+ {
+  "code": "69",
+  "region": "84",
+  "chefLieu": "69123",
+  "nom": "Rhône",
+  "typeLiaison": 2,
+  "zone": "metro"
+ },
+ {
+  "code": "75",
+  "region": "11",
+  "chefLieu": "75056",
+  "nom": "Paris",
+  "typeLiaison": 0,
+  "zone": "metro"
+ },
+ {
+  "code": "93",
+  "region": "11",
+  "chefLieu": "93008",
+  "nom": "Seine-Saint-Denis",
+  "typeLiaison": 3,
+  "zone": "metro"
+ },
+ {
+  "code": "974",
+  "region": "04",
+  "chefLieu": "97411",
+  "nom": "La Réunion",
+  "typeLiaison": 0,
+  "zone": "drom"
+ }
+]

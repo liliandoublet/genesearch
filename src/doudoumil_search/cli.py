@@ -3,8 +3,10 @@
 Exemples ::
 
     doudoumil telecharge insee --annees 2019-2020
+    doudoumil telecharge communes          # référentiel des communes
     doudoumil ingest insee                 # tous les fichiers téléchargés
     doudoumil ingest insee deces-2020.txt  # un fichier précis
+    doudoumil normalize                    # bronze → silver
 
 Les données sont rangées sous ``data/`` (ou sous ``$DOUDOUMIL_DATA``).
 """
@@ -17,8 +19,14 @@ from collections.abc import Sequence
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
-from doudoumil_search.config import dossier_bronze, dossier_donnees
+from doudoumil_search.config import (
+    dossier_bronze,
+    dossier_donnees,
+    dossier_referentiels,
+    dossier_silver,
+)
 from doudoumil_search.ingest import insee_deces, telechargement
+from doudoumil_search.normalize import lieux, silver
 from doudoumil_search.pivot import Source
 
 journal = logging.getLogger("doudoumil_search")
@@ -26,6 +34,22 @@ journal = logging.getLogger("doudoumil_search")
 
 def dossier_telechargements_insee(racine: Path) -> Path:
     return dossier_bronze(racine) / Source.INSEE_DECES.value / "telechargements"
+
+
+def dossier_communes(racine: Path) -> Path:
+    return dossier_referentiels(racine) / "communes"
+
+
+def charger_referentiel(racine: Path) -> lieux.Referentiel | None:
+    """Référentiel des communes s'il a été téléchargé, sinon ``None`` (avec un avertissement)."""
+    dossier = dossier_communes(racine)
+    if not (dossier / "communes.json").exists():
+        journal.warning(
+            "référentiel des communes absent : lancez « doudoumil telecharge communes » "
+            "pour compléter les lieux"
+        )
+        return None
+    return lieux.Referentiel.depuis_dossier(dossier)
 
 
 def intervalle(texte: str) -> range:
@@ -49,6 +73,29 @@ def commande_telecharge_insee(args: argparse.Namespace) -> int:
     for ressource in ressources:
         chemin = telechargement.telecharger(ressource, dossier)
         telechargement.extraire_si_archive(chemin)
+    return 0
+
+
+def commande_telecharge_communes(args: argparse.Namespace) -> int:
+    dossier = lieux.telecharger_referentiel(dossier_communes(args.donnees))
+    print(f"référentiel des communes {lieux.VERSION_REFERENTIEL} dans {dossier}")
+    return 0
+
+
+def commande_normalize(args: argparse.Namespace) -> int:
+    bronze = dossier_bronze(args.donnees)
+    sources = args.sources or silver.sources_bronze(bronze)
+    if not sources:
+        journal.error("rien à normaliser : la couche bronze est vide")
+        return 1
+    referentiel = charger_referentiel(args.donnees)
+    for rapport in silver.construire_silver(
+        bronze, dossier_silver(args.donnees), referentiel, sources
+    ):
+        print(
+            f"{rapport.source} : {rapport.actes} actes ({rapport.doublons} doublons écartés), "
+            f"{rapport.mentions} mentions"
+        )
     return 0
 
 
@@ -99,6 +146,10 @@ def construire_analyseur() -> argparse.ArgumentParser:
     t_insee = sources_telecharge.add_parser("insee", help="fichier des décès de l'INSEE")
     t_insee.add_argument("--annees", type=intervalle, help="ex. 1970-1975 (défaut : toutes)")
     t_insee.set_defaults(fonction=commande_telecharge_insee)
+    t_communes = sources_telecharge.add_parser(
+        "communes", help="référentiel des communes (Code officiel géographique)"
+    )
+    t_communes.set_defaults(fonction=commande_telecharge_communes)
 
     ingest = commandes.add_parser("ingest", help="convertir une source en couche bronze")
     sources_ingest = ingest.add_subparsers(dest="source", required=True)
@@ -108,6 +159,12 @@ def construire_analyseur() -> argparse.ArgumentParser:
         "--processus", type=int, default=None, help="fichiers traités en parallèle"
     )
     i_insee.set_defaults(fonction=commande_ingest_insee)
+
+    normalize = commandes.add_parser("normalize", help="construire la couche silver")
+    normalize.add_argument(
+        "sources", nargs="*", help="sources à normaliser (défaut : toutes celles de bronze)"
+    )
+    normalize.set_defaults(fonction=commande_normalize)
     return analyseur
 
 

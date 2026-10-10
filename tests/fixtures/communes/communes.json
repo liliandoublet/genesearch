@@ -1,0 +1,172 @@
+[
+ {
+  "code": "01039",
+  "nom": "Béon",
+  "zone": "metro",
+  "type": "commune-deleguee",
+  "chefLieu": "01138",
+  "departement": "01"
+ },
+ {
+  "code": "01138",
+  "nom": "Culoz-Béon",
+  "zone": "metro",
+  "departement": "01",
+  "type": "commune-actuelle",
+  "anciensCodes": [
+   "01039"
+  ]
+ },
+ {
+  "code": "01138",
+  "nom": "Culoz",
+  "zone": "metro",
+  "type": "commune-deleguee",
+  "chefLieu": "01138",
+  "departement": "01"
+ },
+ {
+  "code": "13001",
+  "nom": "Aix-en-Provence",
+  "zone": "metro",
+  "departement": "13",
+  "type": "commune-actuelle"
+ },
+ {
+  "code": "13055",
+  "nom": "Marseille",
+  "zone": "metro",
+  "departement": "13",
+  "type": "commune-actuelle"
+ },
+ {
+  "code": "13201",
+  "nom": "Marseille 1er Arrondissement",
+  "zone": "metro",
+  "type": "arrondissement-municipal",
+  "commune": "13055",
+  "departement": "13"
+ },
+ {
+  "code": "29019",
+  "nom": "Brest",
+  "zone": "metro",
+  "departement": "29",
+  "type": "commune-actuelle",
+  "anciensCodes": [
+   "29096",
+   "29253",
+   "29258"
+  ]
+ },
+ {
+  "code": "29103",
+  "nom": "Landerneau",
+  "zone": "metro",
+  "departement": "29",
+  "type": "commune-actuelle"
+ },
+ {
+  "code": "29232",
+  "nom": "Quimper",
+  "zone": "metro",
+  "departement": "29",
+  "type": "commune-actuelle",
+  "anciensCodes": [
+   "29050",
+   "29088",
+   "29157"
+  ]
+ },
+ {
+  "code": "2A004",
+  "nom": "Ajaccio",
+  "zone": "metro",
+  "departement": "2A",
+  "type": "commune-actuelle",
+  "anciensCodes": [
+   "20004"
+  ]
+ },
+ {
+  "code": "35238",
+  "nom": "Rennes",
+  "zone": "metro",
+  "departement": "35",
+  "type": "commune-actuelle"
+ },
+ {
+  "code": "35288",
+  "nom": "Saint-Malo",
+  "zone": "metro",
+  "departement": "35",
+  "type": "commune-actuelle",
+  "anciensCodes": [
+   "35213",
+   "35313"
+  ]
+ },
+ {
+  "code": "59350",
+  "nom": "Lille",
+  "zone": "metro",
+  "departement": "59",
+  "type": "commune-actuelle",
+  "anciensCodes": [
+   "59298",
+   "59355"
+  ]
+ },
+ {
+  "code": "69123",
+  "nom": "Lyon",
+  "zone": "metro",
+  "departement": "69",
+  "type": "commune-actuelle",
+  "anciensCodes": [
+   "69232"
+  ]
+ },
+ {
+  "code": "75056",
+  "nom": "Paris",
+  "zone": "metro",
+  "departement": "75",
+  "type": "commune-actuelle"
+ },
+ {
+  "code": "75115",
+  "nom": "Paris 15e Arrondissement",
+  "zone": "metro",
+  "type": "arrondissement-municipal",
+  "commune": "75056",
+  "departement": "75"
+ },
+ {
+  "code": "93066",
+  "nom": "Saint-Denis",
+  "zone": "metro",
+  "departement": "93",
+  "type": "commune-actuelle",
+  "anciensCodes": [
+   "75059",
+   "75066",
+   "93059"
+  ]
+ },
+ {
+  "code": "93066",
+  "nom": "Saint-Denis",
+  "zone": "metro",
+  "type": "commune-deleguee",
+  "chefLieu": "93066",
+  "departement": "93"
+ },
+ {
+  "code": "97411",
+  "nom": "Saint-Denis",
+  "zone": "drom",
+  "departement": "974",
+  "type": "commune-actuelle"
+ }
+]

@@ -56,6 +56,13 @@ src/doudoumil_search/
 │   ├── insee_deces.py     # connecteur INSEE décès (largeur fixe)
 │   └── telechargement.py  # catalogue data.gouv.fr, reprise, somme de contrôle
 ├── normalize/    # bronze → silver                 (jalon 3)
+│   ├── texte.py           # majuscules ASCII, découpage en mots
+│   ├── noms.py            # nom normalisé (particules gardées)
+│   ├── prenoms.py         # prénoms + prenoms_equivalents.csv (abréviations, latin)
+│   ├── phonetique.py      # clé phonétique (Soundex2 adapté, non tronqué)
+│   ├── dates.py           # intervalle d'années de naissance (fonction + expression Polars)
+│   ├── lieux.py           # référentiel des communes, codes anciens → commune actuelle
+│   └── silver.py          # dédoublonnage et normalisation d'une source
 ├── search/       # silver → gold, recherche        (jalon 4)
 ├── api/          # FastAPI + interface web locale  (jalons 5 et 7)
 └── linkage/      # rapprochement GEDCOM, optionnel (jalon 9)
@@ -67,11 +74,12 @@ src/doudoumil_search/
 
 - **Dernière mise à jour** : 2026-10-10
 - **Jalons terminés** : 0 (socle), 1 (modèle pivot), 2 (ingestion INSEE décès, sauf
-  vérification sur un fichier réel)
-- **Jalon en cours** : 3 (normalisation → silver), dans le cadre de l'étape 1 du plan
-  (chaîne complète INSEE, jalons 2 à 4)
-- **Prochaine action** : normalisation des noms, prénoms, dates et lieux. En parallèle :
-  préalable P de PLAN.md (accès aux sources), en commençant par l'export en masse de Socface.
+  vérification sur un fichier réel), 3 (normalisation → silver, sauf fusions anciennes)
+- **Jalon en cours** : 4 (base gold et recherche), dernier de l'étape 1 du plan (chaîne
+  complète INSEE, jalons 2 à 4)
+- **Prochaine action** : base DuckDB, présélection à trois canaux, score, calibration et
+  évaluation. En parallèle : préalable P de PLAN.md (accès aux sources), en commençant par
+  l'export en masse de Socface.
 - **Accès réseau de l'environnement de développement** : data.gouv.fr et insee.fr sont
   bloqués (refus 403 du proxy) ; PyPI, GitHub et registry.npmjs.org passent. Le format INSEE
   et le catalogue data.gouv.fr restent donc à vérifier sur de vrais fichiers.
@@ -86,6 +94,10 @@ src/doudoumil_search/
   - Énumérations stockées en `String` dans le Parquet ; la validation relève de Pydantic.
   - Identifiant INSEE : clé de contenu (date de décès, commune, n° d'acte), voir PLAN.md
     jalon 2 ; doublons gardés en bronze, éliminés en silver.
+  - Clé phonétique : adaptation de Soundex2, non tronquée (`normalize/phonetique.py`) ;
+    figée par des valeurs de référence dans les tests.
+  - Référentiel des communes : `@etalab/decoupage-administratif` 6.0.0 depuis le registre npm,
+    dans `data/ref/communes/`.
   - CLI `doudoumil` en `argparse` ; pools de processus en démarrage *spawn* (un *fork* après
     la création de fils d'exécution a bloqué les tests).
   - Conception de la recherche fixée dans PLAN.md, règles R1 à R5 :
@@ -105,6 +117,10 @@ src/doudoumil_search/
 ## Journal des sessions
 
 Une ligne par session de travail, la plus récente en haut.
+
+- 2026-10-10 — Jalon 3 : normalisation des noms, prénoms (table d'équivalences), clé
+  phonétique, intervalles de naissance, référentiel des communes (Etalab), étape silver avec
+  dédoublonnage, `doudoumil telecharge communes` et `doudoumil normalize`.
 
 - 2026-10-10 — Jalon 2 : évolution du pivot (`nature_nom`, `date_naissance_brute`,
   intervalle de naissance, outre-mer), connecteur INSEE décès vers bronze, téléchargement

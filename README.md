@@ -70,6 +70,23 @@ uv run python -c "import polars as pl; print(pl.read_parquet('data/bronze/insee_
 
 Chaque partition contient aussi `rejets.csv`, la liste des lignes écartées et leur motif.
 
+### Jalon 3 — normalisation (couche silver)
+
+```bash
+uv run doudoumil telecharge communes   # référentiel des communes dans data/ref/communes/
+uv run doudoumil normalize             # Parquet normalisé et dédoublonné dans data/silver/<source>/
+```
+
+| brut | `nom_norm` | `nom_phonetique` |
+|---|---|---|
+| `Le Goff`, `LE-GOFF` | `LE GOFF` | `LKF` |
+| `LEGOF`, `Le Goffe` | `LEGOF`, `LE GOFFE` | `LKF` |
+| `d'Hervé` | `D HERVE` | `DRV` |
+
+Prénoms : `Jn-Bte Marie` → `JEAN BAPTISTE MARIE`, `Joannes` → `JEAN`. Naissance : une date
+incomplète `19310300` donne l'intervalle `[1931, 1931]`, un âge de 40 ans dans un recensement
+de 1906 donne `[1865, 1866]`.
+
 ## Arborescence
 
 ```
