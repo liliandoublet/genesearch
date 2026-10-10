@@ -3,6 +3,7 @@
 import hashlib
 import io
 import json
+import os
 import threading
 import zipfile
 from collections.abc import Iterator
@@ -150,6 +151,24 @@ def test_extraction_d_une_archive(tmp_path: Path) -> None:
     extraits = extraire_si_archive(chemin)
     assert extraits == [tmp_path / "deces-1975.txt"]
     assert extraits[0].read_bytes() == CONTENU_2019
+
+
+def test_extraction_non_refaite(tmp_path: Path) -> None:
+    """Réextraire changerait la date du fichier, et doudoumil pipeline le reconvertirait."""
+    chemin = tmp_path / "deces-1975.zip"
+    with zipfile.ZipFile(chemin, "w") as archive:
+        archive.writestr("deces-1975.txt", CONTENU_2019)
+    (extrait,) = extraire_si_archive(chemin)
+    os.utime(extrait, (1, chemin.stat().st_mtime + 10))
+    date = extrait.stat().st_mtime
+    assert extraire_si_archive(chemin) == [extrait]
+    assert extrait.stat().st_mtime == date
+    # archive plus récente (nouvelle version publiée) : extraite à nouveau
+    with zipfile.ZipFile(chemin, "w") as archive:
+        archive.writestr("deces-1975.txt", CONTENU_2020)
+    os.utime(chemin, (1, date + 10))
+    extraire_si_archive(chemin)
+    assert extrait.read_bytes() == CONTENU_2020
 
 
 def test_un_fichier_texte_n_est_pas_extrait(tmp_path: Path) -> None:

@@ -16,11 +16,13 @@ cp ~/Téléchargements/bms-landerneau.xlsx data/releves/
 uv run doudoumil ingest releve --modele data/releves/bms-landerneau.xlsx
 #    → data/releves/bms-landerneau.toml, à relire (titre, type d'acte, commune)
 
-# 3. importer, puis reconstruire la base
-uv run doudoumil ingest releve      # tous les relevés de data/releves/
-uv run doudoumil normalize releve
-uv run doudoumil index
+# 3. importer et mettre la base à jour
+uv run doudoumil pipeline
 ```
+
+`doudoumil pipeline` réimporte un relevé dès que son tableur ou sa correspondance change, et
+ne refait rien d'autre que nécessaire. `doudoumil ingest releve` importe seulement les relevés,
+sans mettre à jour la base (suivi de `doudoumil normalize releve` et `doudoumil index`).
 
 `--feuille "Baptêmes"` choisit la feuille d'un classeur (la première par défaut). La commande
 `--modele` ne remplace jamais une correspondance existante.
@@ -29,8 +31,8 @@ Le bilan indique les lignes importées et rejetées ; le détail des rejets, ave
 dans `data/bronze/releve/<nom>/rejets.csv`. Corriger le tableur ou la correspondance, puis
 relancer : l'import remplace le précédent et redonne les mêmes identifiants.
 
-> Sauvegarde : `data/releves/` contient tes fichiers, que rien ne sait reconstruire. Garde-le
-> avec `data/perso/` (tes trouvailles) dans tes sauvegardes.
+> Sauvegarde : `data/releves/` contient tes fichiers, que rien ne sait reconstruire.
+> `doudoumil sauvegarde` l'archive avec `data/perso/` (tes trouvailles).
 
 ## Le fichier de correspondance
 

@@ -574,13 +574,30 @@ candidats pour chacun. Ton arbre lui-même reste géré par ton code.
 
 ## Jalon 10 — Finitions
 
-- [ ] Commande unique `doudoumil pipeline` (téléchargement → bronze → silver → gold), relevés
-  compris
-- [ ] Mise à jour mensuelle d'INSEE décès sans tout reconstruire
-- [ ] Sauvegarde et restauration de « Mes trouvailles » et des relevés (`data/perso/`,
-  `data/releves/`)
+- [x] Commande unique `doudoumil pipeline` (téléchargement → bronze → silver → gold), relevés
+  compris (`pipeline.py`)
+- [~] Mise à jour mensuelle d'INSEE décès sans tout reconstruire : `doudoumil pipeline
+  --telecharge` ne convertit que le nouveau fichier ; la normalisation de la source et la base
+  de recherche sont encore refaites en entier (à mesurer sur les ≈ 25 M de décès)
+- [x] Sauvegarde et restauration de « Mes trouvailles » et des relevés (`data/perso/`,
+  `data/releves/`) : `doudoumil sauvegarde`, `doudoumil restaure`, lien dans « Mes
+  trouvailles » (`sauvegarde.py`)
 - [ ] README complet : installation, place disque nécessaire, ajout d'une source, exemples
 - [ ] Journalisation homogène et messages d'erreur en français
+
+**Décisions tranchées**
+- `doudoumil pipeline` compare des dates de modification, à la manière de `make` : une
+  partition bronze est refaite si son fichier source (ou la correspondance et le tableur d'un
+  relevé) est plus récent ; une source silver si l'une de ses partitions ou le référentiel a
+  changé (le dossier de la source compte, pour voir une partition supprimée) ; la base si une
+  source silver a changé. `--tout` force tout. Une erreur sur un relevé n'arrête pas le reste ;
+  le code de retour la signale. Les archives INSEE ne sont réextraites que si elles sont plus
+  récentes que le fichier extrait.
+- Sauvegarde = archive zip datée de `data/perso/` et `data/releves/` (le reste se
+  reconstruit), avec un manifeste `sauvegarde.json` ; la base SQLite est copiée par l'API de
+  sauvegarde de SQLite (cohérente même si l'interface écrit). Restauration : refuse une archive
+  sans manifeste ou dont un chemin sortirait de ces dossiers, sauvegarde d'abord l'état
+  actuel, ne remplace que les dossiers présents dans l'archive.
 
 ---
 

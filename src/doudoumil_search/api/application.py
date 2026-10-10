@@ -17,7 +17,7 @@ import threading
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from dataclasses import asdict
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Final
 from urllib.parse import urlparse
@@ -40,6 +40,7 @@ from doudoumil_search.api.formulaire import (
 from doudoumil_search.api.trouvailles import Carnet
 from doudoumil_search.config import dossier_gold, dossier_perso, dossier_referentiels
 from doudoumil_search.normalize.lieux import Referentiel
+from doudoumil_search.sauvegarde import octets_de_sauvegarde
 from doudoumil_search.search import affichage
 from doudoumil_search.search.evaluation import pourcent
 from doudoumil_search.search.gold import chemin_base
@@ -400,6 +401,15 @@ def creer_application(racine: Path) -> FastAPI:
             "acte_id",
         ]
         return csv_reponse(lignes, entete, "trouvailles.csv")
+
+    @application.get("/sauvegarde.zip", include_in_schema=False)
+    def sauvegarde_zip() -> Response:
+        horodatage = datetime.now().strftime("%Y%m%d-%H%M%S")
+        return Response(
+            octets_de_sauvegarde(etat.racine),
+            media_type="application/zip",
+            headers={"Content-Disposition": f'attachment; filename="doudoumil-{horodatage}.zip"'},
+        )
 
     # --- API JSON ------------------------------------------------------------------------
 

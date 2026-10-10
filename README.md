@@ -54,6 +54,7 @@ Tout est écrit sous `data/`, qui n'est pas versionné :
 | `data/gold/` | base DuckDB indexée pour la recherche |
 | `data/releves/` | tes relevés (tableurs et fichiers de correspondance) : à sauvegarder |
 | `data/perso/` | tes trouvailles (favoris, notes, verdicts) : à sauvegarder |
+| `data/sauvegardes/` | archives de `doudoumil sauvegarde` (à copier hors de l'ordinateur) |
 
 Une couche ne modifie jamais la précédente : chaque étape produit de nouveaux fichiers.
 
@@ -175,6 +176,31 @@ La commune « Landerneau » est rattachée à son code INSEE à la normalisation
 naissance d'un baptisé est déduite de la date du baptême. La fiche et la citation reprennent le
 titre du relevé ; les verdicts sur ces notices calibrent la source « Relevés ».
 
+### Jalon 10 — commande unique et sauvegarde
+
+```bash
+uv run doudoumil pipeline --telecharge  # télécharge, convertit, normalise, indexe
+uv run doudoumil pipeline               # ensuite : ne refait que ce qui a changé
+uv run doudoumil sauvegarde --vers /media/cle-usb
+uv run doudoumil restaure /media/cle-usb/doudoumil-20261010-173944.zip
+```
+
+Second passage, rien n'a changé :
+
+```
+décès INSEE : 1 fichier déjà converti
+relevé landerneau-bms : à jour
+normalisation insee_deces : à jour
+normalisation releve : à jour
+base de recherche : à jour
+```
+
+Un nouveau mois de décès INSEE ou un relevé complété n'entraîne que la conversion de ce fichier,
+puis la mise à jour de la normalisation et de la base. La sauvegarde (archive zip) contient
+tout ce qui ne se reconstruit pas : tes trouvailles (`data/perso/`) et tes relevés
+(`data/releves/`) ; elle se télécharge aussi depuis la page « Mes trouvailles ». La
+restauration sauvegarde d'abord l'état actuel.
+
 ## Arborescence
 
 ```
@@ -182,6 +208,8 @@ src/doudoumil_search/
 ├── pivot.py        # modèle pivot (Acte, Mention) et fabriquer_id()
 ├── schemas.py      # schémas Parquet
 ├── cli.py          # commande doudoumil
+├── pipeline.py     # doudoumil pipeline : ne refait que ce qui a changé
+├── sauvegarde.py   # sauvegarde et restauration des trouvailles et des relevés
 ├── ingest/         # connecteurs (INSEE décès, relevés CSV/Excel) et téléchargement
 ├── normalize/      # noms, prénoms, clé phonétique, dates, lieux, étape silver
 ├── search/         # base gold, moteur, score, calibration, évaluation

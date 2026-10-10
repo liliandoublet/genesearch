@@ -51,6 +51,8 @@ src/doudoumil_search/
 ├── schemas.py    # SCHEMA_ACTES, SCHEMA_MENTIONS, vers_dataframe()
 ├── config.py     # dossiers data/ (ou $DOUDOUMIL_DATA) : bronze, silver, gold, ref, perso, releves
 ├── cli.py        # commande `doudoumil` (argparse)
+├── pipeline.py   # `doudoumil pipeline` : bronze → silver → gold selon les dates (façon make)
+├── sauvegarde.py # archive zip de data/perso et data/releves, restauration vérifiée
 ├── ingest/       # sources → bronze                (jalons 2, 6, 8)
 │   ├── commun.py          # rejets, bilan d'ingestion, motifs de codes géographiques
 │   ├── ecriture.py        # partition bronze écrite par lots, publiée d'un bloc
@@ -92,13 +94,15 @@ src/doudoumil_search/
   de la vérification sur de vrais fichiers INSEE.
 - **Jalon en cours** : 8 en partie — **connecteur de relevés terminé** ; Morts pour la France
   et registres matricules attendent le préalable P. Jalons 6 (Socface) et 7 (images,
-  localisateur de registres) bloqués par le préalable P. Ensuite : jalon 10 (commande unique
-  `doudoumil pipeline`, sauvegarde de `data/perso/` et `data/releves/`).
-- **Prochaine action** : jalon 10 (pipeline, sauvegarde) ; côté utilisateur : envoyer la
-  demande d'export Socface (`docs/demande-export-socface.md`), essayer un vrai relevé avec
-  `doudoumil ingest releve --modele` ; dès que data.gouv.fr est accessible, ingérer les vrais
-  fichiers INSEE pour vérifier le format, lancer `doudoumil calibre` et mesurer les
-  performances sur les ≈ 25 M de décès.
+  localisateur de registres) bloqués par le préalable P. Jalon 10 en partie : `doudoumil
+  pipeline` et sauvegarde / restauration faits ; restent la mise à jour vraiment incrémentale
+  de silver et gold, le README complet et l'homogénéité des journaux.
+- **Prochaine action** : côté utilisateur : envoyer la demande d'export Socface
+  (`docs/demande-export-socface.md`), essayer un vrai relevé (`doudoumil ingest releve
+  --modele`), lancer `doudoumil pipeline --telecharge` sur sa machine (data.gouv.fr y est
+  accessible) pour vérifier le format INSEE, puis `doudoumil calibre`, et mesurer le temps du
+  pipeline sur les ≈ 25 M de décès. Côté code, sans réseau : finitions du jalon 10, ou
+  jalon 9 (GEDCOM, optionnel).
 - **Accès réseau de l'environnement de développement** : data.gouv.fr et insee.fr sont
   bloqués (refus 403 du proxy) ; PyPI, GitHub et registry.npmjs.org passent. Le format INSEE
   et le catalogue data.gouv.fr restent donc à vérifier sur de vrais fichiers.
@@ -133,6 +137,11 @@ src/doudoumil_search/
     fiches ; en silver, code de commune déduit d'un nom unique et naissance du sujet d'un
     baptême / d'une naissance déduite de l'année de l'acte (R3). `--cas` de `evalue` et
     `calibre` compte les cas **par source** (calibration des petites sources).
+  - `doudoumil pipeline` (jalon 10) : refait une étape si une entrée est plus récente que son
+    résultat (dates de modification) ; `--tout` force ; une erreur de relevé n'arrête pas le
+    reste. Sauvegarde : zip de `data/perso/` + `data/releves/` avec manifeste, SQLite copiée par
+    l'API de sauvegarde ; restauration vérifiée (manifeste, chemins), précédée d'une
+    sauvegarde de l'état actuel.
   - Interface web : Jinja2 rendu serveur sans framework JS, recherches dans l'adresse (GET),
     `127.0.0.1` seulement, hôtes et origines vérifiés ; trouvailles dans
     `data/perso/trouvailles.sqlite`, à sauvegarder (jamais reconstruites) ; leurs verdicts
@@ -156,6 +165,11 @@ src/doudoumil_search/
 ## Journal des sessions
 
 Une ligne par session de travail, la plus récente en haut.
+
+- 2026-10-10 — Jalon 10 (en partie) : `doudoumil pipeline` (téléchargement au choix, puis
+  bronze, silver et gold refaits seulement si leurs entrées ont changé), `doudoumil
+  sauvegarde` / `restaure` et téléchargement de la sauvegarde depuis « Mes trouvailles » ;
+  archives INSEE réextraites seulement si elles sont plus récentes.
 
 - 2026-10-10 — Jalon 8 (relevés) : `Source.RELEVE`, `Acte.titre_source`, connecteur
   `ingest/releves.py` (CSV et Excel, correspondance TOML vérifiée, modèle prérempli par

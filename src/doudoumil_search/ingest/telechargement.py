@@ -144,11 +144,21 @@ def extraire_si_archive(chemin: Path) -> list[Path]:
             if membre.is_dir() or not nom.lower().endswith(".txt"):
                 continue
             cible = chemin.parent / nom
+            extraits.append(cible)
+            if _deja_extrait(cible, membre, chemin):
+                continue  # sa date reste celle de la première extraction (doudoumil pipeline)
             with archive.open(membre) as source, cible.open("wb") as sortie:
                 while bloc := source.read(TAILLE_BLOC):
                     sortie.write(bloc)
-            extraits.append(cible)
     return extraits
+
+
+def _deja_extrait(cible: Path, membre: zipfile.ZipInfo, archive: Path) -> bool:
+    """Fichier extrait de cette archive-ci : même taille, et plus récent que l'archive."""
+    if not cible.exists():
+        return False
+    etat = cible.stat()
+    return etat.st_size == membre.file_size and etat.st_mtime >= archive.stat().st_mtime
 
 
 def _conforme(chemin: Path, ressource: Ressource) -> bool:

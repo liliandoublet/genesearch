@@ -56,7 +56,7 @@ def chemin_base(gold: Path) -> Path:
     return gold / NOM_BASE
 
 
-def _sources_silver(silver: Path) -> list[str]:
+def sources_silver(silver: Path) -> list[str]:
     if not silver.exists():
         return []
     return sorted(
@@ -86,7 +86,7 @@ def construire_gold(
     silver: Path, gold: Path, referentiel: Referentiel | None = None
 ) -> RapportGold:
     """Construit ``gold/recherche.duckdb`` depuis toutes les sources silver."""
-    sources = _sources_silver(silver)
+    sources = sources_silver(silver)
     if not sources:
         raise FileNotFoundError(f"aucune source dans {silver} : lancez « doudoumil normalize »")
     gold.mkdir(parents=True, exist_ok=True)

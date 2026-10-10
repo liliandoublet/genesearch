@@ -31,6 +31,16 @@ def dossier_referentiels(racine: Path | None = None) -> Path:
     return (racine or dossier_donnees()) / "ref"
 
 
+def dossier_telechargements_insee(racine: Path | None = None) -> Path:
+    """Fichiers INSEE téléchargés, à côté de leurs partitions bronze."""
+    return dossier_bronze(racine) / "insee_deces" / "telechargements"
+
+
+def dossier_communes(racine: Path | None = None) -> Path:
+    """Référentiel des communes (Code officiel géographique)."""
+    return dossier_referentiels(racine) / "communes"
+
+
 def dossier_perso(racine: Path | None = None) -> Path:
     """Données personnelles (trouvailles) : jamais reconstruites, à sauvegarder."""
     return (racine or dossier_donnees()) / "perso"

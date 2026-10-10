@@ -8,6 +8,7 @@
 {% else %}
 <p class="resume">{{ trouvailles | length }} notice{{ 's' if trouvailles | length > 1 }} ·
   <a href="/trouvailles.csv">exporter en CSV</a> ·
+  <a href="/sauvegarde.zip" title="Trouvailles et relevés, à restaurer avec « doudoumil restaure »">télécharger une sauvegarde</a> ·
   les verdicts ✓ / ✗ servent à calibrer les probabilités (<code>doudoumil calibre</code>)</p>
 <ul class="liste">
   {% for t in trouvailles %}
