@@ -166,6 +166,13 @@ src/doudoumil_search/
 
 Une ligne par session de travail, la plus récente en haut.
 
+- 2026-10-10 — Correction de la CI : les tests de `pipeline` échouaient sur GitHub (3 tests,
+  verts en local) car les fixtures fraîchement extraites par git portent la date du jour, plus
+  récente que les résultats « vieillis » du test. Les tests datent désormais toutes les
+  entrées et tous les résultats du même instant (`tests/test_pipeline.py`). Aucun changement
+  du code de `pipeline.py`. Leçon : un test fondé sur des dates de fichiers ne doit jamais
+  dépendre de l'ancienneté des fixtures ni de l'ordre de parcours des dossiers.
+
 - 2026-10-10 — `docs/tests-manuels.md` : préparatifs côté utilisateur et tests manuels (vrais
   fichiers INSEE, interface, comparaison avec Filae, performances, calibration, relevé,
   sauvegarde) avec fiche de résultats ; `doudoumil pipeline` affiche la durée de chaque étape

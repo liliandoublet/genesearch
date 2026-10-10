@@ -18,21 +18,38 @@ from doudoumil_search.search.gold import chemin_base
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
-def vieillir(chemin: Path, secondes: float = 60) -> None:
-    """Recule la date d'un fichier ou d'un dossier et de son contenu."""
-    instant = time.time() - secondes
-    for element in [chemin, *chemin.rglob("*")] if chemin.is_dir() else [chemin]:
-        os.utime(element, (instant, instant))
+def dater(racine: Path, instant: float) -> None:
+    """Donne la même date à tous les fichiers et dossiers de ``racine``."""
+    for chemin in [racine, *racine.rglob("*")]:
+        os.utime(chemin, (instant, instant))
+
+
+def tout_vieillir(racine: Path, secondes: float = 60) -> None:
+    """Fait paraître déjà traités tous les fichiers de ``racine``, entrées comprises.
+
+    Une date unique pour tous : la comparaison est « plus récent que », donc des dates
+    égales veulent dire « à jour », alors que des dates décalées de quelques microsecondes
+    selon l'ordre de parcours rendraient le résultat dépendant du système de fichiers.
+    """
+    dater(racine, time.time() - secondes)
 
 
 @pytest.fixture
 def racine(tmp_path: Path) -> Path:
-    """Un fichier INSEE téléchargé, un relevé et le référentiel des communes."""
+    """Un fichier INSEE téléchargé, un relevé et le référentiel des communes.
+
+    Comme après un « git clone » ou un téléchargement tout neuf, toutes les entrées portent la
+    date du jour : un test qui veut des résultats « à jour » doit donc vieillir aussi les
+    entrées (``tout_vieillir``), pas seulement bronze et silver. Les copies de fixtures
+    gardent sinon leur date d'extraction, ce qui masquait le problème sur une machine où les
+    fixtures sont anciennes et le faisait échouer en CI.
+    """
     telechargements = dossier_telechargements_insee(tmp_path)
     telechargements.mkdir(parents=True)
     shutil.copy(FIXTURES / "deces-extrait.txt", telechargements / "deces-2020.txt")
     shutil.copytree(FIXTURES / "releves", tmp_path / "releves")
     shutil.copytree(FIXTURES / "communes", tmp_path / "ref" / "communes")
+    dater(tmp_path, time.time())
     return tmp_path
 
 
@@ -57,8 +74,7 @@ def test_premier_passage_construit_tout(racine: Path) -> None:
 
 def test_second_passage_ne_refait_rien(racine: Path) -> None:
     lancer(racine)
-    vieillir(racine / "bronze")
-    vieillir(racine / "silver")
+    tout_vieillir(racine)
     base = chemin_base(racine / "gold")
     date_base = base.stat().st_mtime
     bilan, lignes = lancer(racine)
@@ -76,9 +92,7 @@ def test_second_passage_ne_refait_rien(racine: Path) -> None:
 def test_nouveau_mois_insee(racine: Path) -> None:
     """Seul le nouveau fichier est converti ; la source et la base sont refaites."""
     lancer(racine)
-    vieillir(racine / "bronze")
-    vieillir(racine / "silver")
-    vieillir(racine / "gold")
+    tout_vieillir(racine)
     shutil.copy(
         FIXTURES / "deces-extrait.txt", dossier_telechargements_insee(racine) / "deces-2021-m01.txt"
     )
@@ -95,9 +109,7 @@ def test_nouveau_mois_insee(racine: Path) -> None:
 
 def test_releve_modifie(racine: Path) -> None:
     lancer(racine)
-    vieillir(racine / "bronze")
-    vieillir(racine / "silver")
-    vieillir(racine / "gold")
+    tout_vieillir(racine)
     (racine / "releves" / "landerneau-bms.csv").touch()  # tableur complété
     _, lignes = lancer(racine)
     assert "landerneau-bms.csv : 7 ingérées, 3 rejetées" in "\n".join(lignes)
