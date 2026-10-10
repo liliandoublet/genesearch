@@ -97,12 +97,12 @@ src/doudoumil_search/
   localisateur de registres) bloqués par le préalable P. Jalon 10 en partie : `doudoumil
   pipeline` et sauvegarde / restauration faits ; restent la mise à jour vraiment incrémentale
   de silver et gold, le README complet et l'homogénéité des journaux.
-- **Prochaine action** : côté utilisateur : envoyer la demande d'export Socface
-  (`docs/demande-export-socface.md`), essayer un vrai relevé (`doudoumil ingest releve
-  --modele`), lancer `doudoumil pipeline --telecharge` sur sa machine (data.gouv.fr y est
-  accessible) pour vérifier le format INSEE, puis `doudoumil calibre`, et mesurer le temps du
-  pipeline sur les ≈ 25 M de décès. Côté code, sans réseau : finitions du jalon 10, ou
-  jalon 9 (GEDCOM, optionnel).
+- **Prochaine action** : côté utilisateur : dérouler `docs/tests-manuels.md` (vrais fichiers
+  INSEE, performances sur ≈ 25 M de décès, comparaison avec Filae, vrai relevé, sauvegarde)
+  et renvoyer sa « fiche de résultats » ; envoyer la demande d'export Socface
+  (`docs/demande-export-socface.md`). Côté code : corriger d'après ce retour (format INSEE,
+  catalogue data.gouv.fr, performances) ; sans retour, finitions du jalon 10 ou jalon 9
+  (GEDCOM, optionnel).
 - **Accès réseau de l'environnement de développement** : data.gouv.fr et insee.fr sont
   bloqués (refus 403 du proxy) ; PyPI, GitHub et registry.npmjs.org passent. Le format INSEE
   et le catalogue data.gouv.fr restent donc à vérifier sur de vrais fichiers.
@@ -165,6 +165,11 @@ src/doudoumil_search/
 ## Journal des sessions
 
 Une ligne par session de travail, la plus récente en haut.
+
+- 2026-10-10 — `docs/tests-manuels.md` : préparatifs côté utilisateur et tests manuels (vrais
+  fichiers INSEE, interface, comparaison avec Filae, performances, calibration, relevé,
+  sauvegarde) avec fiche de résultats ; `doudoumil pipeline` affiche la durée de chaque étape
+  et signale un catalogue data.gouv.fr sans fichier reconnu.
 
 - 2026-10-10 — Jalon 10 (en partie) : `doudoumil pipeline` (téléchargement au choix, puis
   bronze, silver et gold refaits seulement si leurs entrées ont changé), `doudoumil

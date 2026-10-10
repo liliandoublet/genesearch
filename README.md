@@ -9,7 +9,9 @@ exemple les recensements Socface) ont un taux d'erreur de 15 à 20 %. Chaque ré
 niveau de confiance, et chaque notice garde sa provenance (cote, vue, URL).
 
 Objectif : remplacer Filae pour un usage personnel (recherche nominative, recensements
-transcrits, images des actes). La feuille de route est dans [`PLAN.md`](PLAN.md).
+transcrits, images des actes). La feuille de route est dans [`PLAN.md`](PLAN.md), les essais à
+faire sur ton ordinateur (vrais fichiers INSEE, performances, comparaison avec Filae) dans
+[`docs/tests-manuels.md`](docs/tests-manuels.md).
 
 ## Prérequis
 

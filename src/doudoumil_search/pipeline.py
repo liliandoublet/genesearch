@@ -16,6 +16,7 @@ de la source et la base de recherche sont, elles, refaites en entier.
 
 import logging
 import multiprocessing
+import time
 from collections.abc import Callable, Iterable, Sequence
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field
@@ -82,6 +83,16 @@ def ingerer_insee(
         return list(executeur.map(_ingerer_insee, fichiers, [bronze] * len(fichiers)))
 
 
+def duree_depuis(debut: float) -> str:
+    """Durée écoulée depuis ``debut`` (``time.perf_counter()``) : « 8 s », « 3 min 05 s »."""
+    secondes = round(time.perf_counter() - debut)
+    if secondes < 60:
+        return f"{secondes} s"
+    if secondes < 3600:
+        return f"{secondes // 60} min {secondes % 60:02d} s"
+    return f"{secondes // 3600} h {secondes % 3600 // 60:02d} min"
+
+
 # --- dates de modification --------------------------------------------------------------------
 
 
@@ -144,11 +155,19 @@ def telecharger_sources(
             afficher(f"référentiel des communes {lieux.VERSION_REFERENTIEL} téléchargé")
         dossier = dossier_telechargements_insee(racine)
         ressources = telechargement.lister_ressources_insee(annees=annees)
+        if not ressources:
+            # catalogue lu, mais aucun nom de fichier reconnu : format des noms à revoir
+            bilan.erreurs.append(
+                "aucun fichier de décès reconnu dans le catalogue data.gouv.fr pour ces années "
+                f"(noms attendus : deces-AAAA.txt ou .zip) ; à défaut, déposez-les dans {dossier}"
+            )
+            afficher(bilan.erreurs[-1])
+            return
         for ressource in ressources:
             chemin = telechargement.telecharger(ressource, dossier)
             telechargement.extraire_si_archive(chemin)
         afficher(f"décès INSEE : {len(ressources)} fichiers disponibles dans {dossier}")
-    except (OSError, URLError, ValueError) as erreur:
+    except (OSError, URLError, ValueError, telechargement.SommeIncorrecte) as erreur:
         bilan.erreurs.append(f"téléchargement impossible ({erreur}) : données locales utilisées")
         afficher(bilan.erreurs[-1])
 
@@ -164,8 +183,15 @@ def mettre_a_jour_bronze(
     fichiers = sorted(dossier_telechargements_insee(racine).glob("*.txt"))
     dossier_insee = bronze / Source.INSEE_DECES.value
     a_convertir = [f for f in fichiers if forcer or a_refaire([f], dossier_insee / f.stem)]
+    debut = time.perf_counter()
     for rapport in ingerer_insee(a_convertir, bronze, processus):
         afficher(resume_ingestion(rapport))
+    if a_convertir:
+        nombre = len(a_convertir)
+        afficher(
+            f"décès INSEE : {nombre} fichier{'s' * (nombre > 1)} converti{'s' * (nombre > 1)} "
+            f"en {duree_depuis(debut)}"
+        )
     if deja := len(fichiers) - len(a_convertir):
         afficher(f"décès INSEE : {deja} fichier{'s' * (deja > 1)} déjà converti{'s' * (deja > 1)}")
 
@@ -174,7 +200,9 @@ def mettre_a_jour_bronze(
             tableur = releves.lire_correspondance(correspondance).fichier
             partition = bronze / Source.RELEVE.value / correspondance.stem
             if forcer or a_refaire([correspondance, tableur], partition):
-                afficher(resume_ingestion(releves.ingerer_releve(correspondance, bronze)))
+                debut = time.perf_counter()
+                rapport = releves.ingerer_releve(correspondance, bronze)
+                afficher(f"{resume_ingestion(rapport)}\n  en {duree_depuis(debut)}")
             else:
                 afficher(f"relevé {correspondance.stem} : à jour")
         except (releves.CorrespondanceInvalide, OSError) as erreur:
@@ -202,10 +230,11 @@ def mettre_a_jour_silver(
         if not forcer and (dossier / source).exists() and derniere <= date_de(dossier / source):
             afficher(f"normalisation {source} : à jour")
             continue
+        debut = time.perf_counter()
         rapport = silver.construire_source(bronze, dossier, source, referentiel)
         afficher(
             f"normalisation {source} : {rapport.actes} actes ({rapport.doublons} doublons "
-            f"écartés), {rapport.mentions} mentions"
+            f"écartés), {rapport.mentions} mentions, en {duree_depuis(debut)}"
         )
 
 
@@ -232,10 +261,11 @@ def mettre_a_jour_gold(
     if not forcer and chemin.exists() and derniere <= date_de(chemin):
         afficher("base de recherche : à jour")
         return
+    debut = time.perf_counter()
     rapport = gold.construire_gold(dossier, dossier_gold(racine), referentiel)
     afficher(
         f"base de recherche : {rapport.personnes} personnes, {rapport.noms_distincts} noms "
-        f"distincts ({', '.join(rapport.sources)})"
+        f"distincts ({', '.join(rapport.sources)}), en {duree_depuis(debut)}"
     )
 
 

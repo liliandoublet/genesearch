@@ -582,6 +582,9 @@ candidats pour chacun. Ton arbre lui-même reste géré par ton code.
 - [x] Sauvegarde et restauration de « Mes trouvailles » et des relevés (`data/perso/`,
   `data/releves/`) : `doudoumil sauvegarde`, `doudoumil restaure`, lien dans « Mes
   trouvailles » (`sauvegarde.py`)
+- [~] Tests manuels sur l'ordinateur de l'utilisateur (`docs/tests-manuels.md`) : vrais
+  fichiers INSEE, performances sur la base complète, comparaison avec Filae, vrai relevé ;
+  durée de chaque étape affichée par `doudoumil pipeline`
 - [ ] README complet : installation, place disque nécessaire, ajout d'une source, exemples
 - [ ] Journalisation homogène et messages d'erreur en français
 

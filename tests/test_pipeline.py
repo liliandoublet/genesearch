@@ -144,6 +144,21 @@ def test_telechargement_impossible(racine: Path, monkeypatch: pytest.MonkeyPatch
     assert lignes[-1].startswith("base de recherche : 23 personnes")
 
 
+@pytest.mark.parametrize(
+    ("secondes", "texte"), [(8.4, "8 s"), (185, "3 min 05 s"), (7_260, "2 h 01 min")]
+)
+def test_duree_depuis(monkeypatch: pytest.MonkeyPatch, secondes: float, texte: str) -> None:
+    monkeypatch.setattr(pipeline.time, "perf_counter", lambda: 1_000 + secondes)
+    assert pipeline.duree_depuis(1_000) == texte
+
+
+def test_catalogue_sans_fichier_reconnu(racine: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(telechargement, "lister_ressources_insee", lambda annees=None: [])
+    bilan, lignes = lancer(racine, telecharger=True)
+    assert bilan.erreurs[0].startswith("aucun fichier de décès reconnu dans le catalogue")
+    assert lignes[-1].startswith("base de recherche : 23 personnes")  # données locales
+
+
 def test_commande_pipeline(racine: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["--donnees", str(racine), "pipeline", "--processus", "1"]) == 0
     assert "base de recherche : 23 personnes" in capsys.readouterr().out
