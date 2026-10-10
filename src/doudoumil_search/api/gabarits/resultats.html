@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block titre %}{{ formulaire.q or formulaire.nom or formulaire.prenoms }}{% endblock %}
+{% block contenu %}
+{% include "_formulaire.html" %}
+<div class="mise-en-page">
+  <aside class="filtres" aria-label="Filtres">
+    {% macro groupe(titre, champ, valeurs, libelles) %}
+    {% if valeurs %}
+    <section>
+      <h2>{{ titre }}</h2>
+      <ul>
+        {% for valeur, nombre in valeurs %}
+        {% set actif = formulaire[champ] == valeur %}
+        <li><a href="{{ formulaire.adresse(**{champ: '' if actif else valeur, 'page': 1}) }}"
+               class="{{ 'actif' if actif }}" {% if actif %}aria-current="true"{% endif %}>
+            {{ libelles.get(valeur, valeur) if libelles else valeur }}</a>
+            <span class="compte">{{ nombre }}</span></li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+    {% endmacro %}
+    {{ groupe("Source", "filtre_source", facettes.sources, noms_sources) }}
+    {{ groupe("Département", "filtre_departement", facettes.departements, noms_departements) }}
+    {{ groupe("Décennie de l'acte", "filtre_decennie", facettes.decennies, {}) }}
+  </aside>
+  <section class="resultats" aria-label="Résultats">
+    <p class="resume">
+      {% if total == 0 %}Aucun résultat{% elif total == 1 %}1 résultat{% else %}{{ total }} résultats{% endif %}
+      {% if total != total_avant_filtres %} sur {{ total_avant_filtres }} (filtres actifs){% endif %}
+      {% if total %} · <a href="{{ formulaire.adresse('/recherche.csv') }}">exporter en CSV</a>{% endif %}
+    </p>
+    <ol class="liste" start="{{ resultats[0][0] if resultats else 1 }}">
+      {% for rang, r, f in resultats %}
+      {% set t = trouvailles.get(r.mention_id) %}
+      <li class="notice">
+        <div class="confiance {{ r.libelle | classe_confiance }}">
+          <strong>{{ r.libelle }}</strong>
+          <span>{% if r.probabilite is not none %}{{ pourcent(r.probabilite, 0) }}{% else %}score {{ r.score | score }}{% endif %}</span>
+        </div>
+        <div class="corps">
+          <a class="nom" href="/actes/{{ r.acte_id }}?mention={{ r.mention_id }}&amp;retour={{ retour | urlencode }}&amp;requete={{ requete_json | urlencode }}">
+            {{ identite(f) }}{% if f.sexe %} <span class="sexe">({{ f.sexe }})</span>{% endif %}</a>
+          <p>{{ naissance(f) }}{% if naissance(f) %} · {% endif %}{{ evenement(f) }}{% if roles.get(r.role) %} · {{ roles.get(r.role) }}{% endif %}</p>
+          <p class="meta">{{ noms_sources.get(r.source, r.source) }} · {{ provenance(f) }}
+            {% if f.url_image | lien_sur %}· <a href="{{ f.url_image | lien_sur }}" target="_blank" rel="noopener noreferrer">image</a>{% endif %}
+            {% for canal in r.canaux %}<span class="canal">{{ canal }}</span>{% endfor %}
+            {% if r.nom_epouse_probable %}<span class="canal epouse">nom d'épouse probable</span>{% endif %}
+            {% if t and t.note %}<span class="note-courte">📝 {{ t.note }}</span>{% endif %}</p>
+        </div>
+        {% with r_mention=r.mention_id, r_acte=r.acte_id, r_libelle=identite(f) ~ ', ' ~ evenement(f), r_source=r.source %}
+        {% include "_trouvaille.html" %}
+        {% endwith %}
+      </li>
+      {% endfor %}
+    </ol>
+    {% if pages > 1 %}
+    <nav class="pagination" aria-label="Pages">
+      {% if formulaire.page > 1 %}<a href="{{ formulaire.adresse(page=formulaire.page - 1) }}" rel="prev">← précédente</a>{% endif %}
+      <span>page {{ formulaire.page }} sur {{ pages }}</span>
+      {% if formulaire.page < pages %}<a href="{{ formulaire.adresse(page=formulaire.page + 1) }}" rel="next">suivante →</a>{% endif %}
+    </nav>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

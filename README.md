@@ -119,6 +119,30 @@ uv run doudoumil evalue --mode donnees  # requêtes exactes sur une copie bruit�
 uv run doudoumil calibre                # le score devient une probabilité (« très probable »…)
 ```
 
+### Jalon 5 — interface web locale
+
+```bash
+uv run doudoumil serve        # ouvre http://127.0.0.1:8765 dans le navigateur
+```
+
+![Résultats d'une recherche](docs/captures/resultats.png)
+
+- **Recherche** simple (« NOM Prénoms ») ou avancée (sexe, naissance, lieu avec
+  autocomplétion, années de l'acte, nom du conjoint, source) ; l'adresse de la page résume la
+  recherche et peut être gardée en marque-page.
+- **Résultats** classés, avec filtres par source, département et décennie, et export CSV.
+- **Fiche** de l'acte avec toutes les personnes citées (le foyer entier pour un recensement),
+  la provenance et une citation prête à copier.
+- **Mes trouvailles** : ★ favori, note, verdict ✓ / ✗. Elles sont gardées dans
+  `data/perso/trouvailles.sqlite` (à sauvegarder) ; les verdicts servent à
+  `doudoumil calibre`.
+- **API JSON** documentée sur `/api/docs`.
+
+![Fiche d'un ménage de recensement](docs/captures/fiche-menage.png)
+
+L'interface n'écoute que sur la machine (`127.0.0.1`) et refuse les envois venus d'un autre
+site.
+
 ## Arborescence
 
 ```
@@ -129,7 +153,7 @@ src/doudoumil_search/
 ├── ingest/         # connecteurs (INSEE décès) et téléchargement
 ├── normalize/      # noms, prénoms, clé phonétique, dates, lieux, étape silver
 ├── search/         # base gold, moteur, score, calibration, évaluation
-├── api/            # interface web locale (jalon 5)
+├── api/            # interface web locale : pages, trouvailles, API JSON
 └── linkage/        # rapprochement avec un arbre GEDCOM (jalon 9, optionnel)
 tests/              # tests, fichiers d'exemple et population synthétique
 notebooks/          # exploration de la qualité des sources

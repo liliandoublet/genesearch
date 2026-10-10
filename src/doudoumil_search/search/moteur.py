@@ -23,7 +23,7 @@ import duckdb
 
 from doudoumil_search.normalize.phonetique import cle_phonetique
 from doudoumil_search.pivot import Sexe
-from doudoumil_search.search.calibration import appliquer
+from doudoumil_search.search.calibration import appliquer, chemin_calibration, lire_calibration
 from doudoumil_search.search.requete import Requete
 from doudoumil_search.search.score import (
     TOLERANCE_NAISSANCE,
@@ -37,6 +37,18 @@ from doudoumil_search.search.score import (
     tolerance,
 )
 
+# Ordre d'affichage des personnes d'un acte, comme sur la feuille de recensement.
+ORDRE_ROLES: Final = (
+    "chef_menage",
+    "sujet",
+    "epoux",
+    "epouse",
+    "pere",
+    "mere",
+    "enfant",
+    "temoin",
+    "autre",
+)
 PLAFOND_PAR_CANAL: Final = 2000
 ECART_LONGUEUR_CANAL_B: Final = 3
 DISTANCE_CANAL_B: Final = 2
@@ -66,6 +78,16 @@ COLONNES_PERSONNES: Final = (
     "naissance_departement",
     "confiance_source",
 )
+# Champs d'affichage ; la date d'ingestion n'est pas lue (sa conversion exigerait pytz).
+COLONNES_FICHE_MENTION: Final = (
+    "mention_id, acte_id, role, nom_brut, prenoms_bruts, nature_nom, sexe, date_naissance, "
+    "date_naissance_brute, annee_naissance_min, annee_naissance_max, lieu_naissance_brut, "
+    "lieu_naissance_code_insee, age, profession, confiance_source"
+)
+COLONNES_FICHE_ACTE: Final = (
+    "acte_id, source, type, annee, date_acte, commune_code_insee, commune_label, departement, "
+    "depot, cote, vue, url_image"
+)
 SELECTION: Final = ", ".join(f"p.{c}" for c in COLONNES_PERSONNES)
 SELECTION_PRENOMS: Final = ", ".join(f"q.{c}" for c in COLONNES_PERSONNES)
 
@@ -93,6 +115,7 @@ class Resultat:
     type: str
     role: str
     annee: int
+    departement: str | None
     canaux: tuple[str, ...]
     composantes: Composantes
     score: float
@@ -114,11 +137,18 @@ class Moteur:
             raise FileNotFoundError(f"{chemin} absente : lancez « doudoumil index »")
         self.base = duckdb.connect(str(chemin), read_only=True)
         self.plafond = plafond
+        self._fichier_calibration = chemin_calibration(chemin)
+        self._date_calibration: float | None = None
         self.calibration: dict[str, list[tuple[float, float]]] = {}
-        for source, score, probabilite in self.base.execute(
-            "SELECT source, score, probabilite FROM calibration ORDER BY source, score"
-        ).fetchall():
-            self.calibration.setdefault(source, []).append((score, probabilite))
+        self._recharger_calibration()
+
+    def _recharger_calibration(self) -> None:
+        """Relit la calibration si son fichier a changé (``doudoumil calibre`` entre-temps)."""
+        fichier = self._fichier_calibration
+        date = fichier.stat().st_mtime if fichier.exists() else None
+        if date != self._date_calibration:
+            self.calibration = lire_calibration(fichier)
+            self._date_calibration = date
 
     def fermer(self) -> None:
         self.base.close()
@@ -294,6 +324,7 @@ class Moteur:
             type=d["type"],
             role=d["role"],
             annee=d["annee"],
+            departement=d["departement"],
             canaux=tuple(sorted(candidat.canaux)),
             composantes=composantes,
             score=score,
@@ -304,6 +335,7 @@ class Moteur:
 
     def classer(self, requete: Requete) -> list[Resultat]:
         """Tous les candidats notés, du plus probable au moins probable, sans les fiches."""
+        self._recharger_calibration()
         resultats = [self.noter(requete, c) for c in self.candidats(requete)]
         return sorted(resultats, key=lambda r: (-r.cle_de_tri, r.mention_id))
 
@@ -323,23 +355,32 @@ class Moteur:
             return {}
         # deux lectures par liste d'identifiants : une jointure parcourrait toute la table actes
         mentions = self._executer(
-            """
-            SELECT mention_id, acte_id, nom_brut, prenoms_bruts, sexe, date_naissance,
-                   date_naissance_brute, annee_naissance_min, annee_naissance_max,
-                   lieu_naissance_brut, lieu_naissance_code_insee, age, profession
-            FROM mentions WHERE mention_id IN (SELECT unnest(?::VARCHAR[]))
-            """,
+            f"SELECT {COLONNES_FICHE_MENTION} FROM mentions "
+            "WHERE mention_id IN (SELECT unnest(?::VARCHAR[]))",
             [mention_ids],
         )
         actes = {
             acte["acte_id"]: acte
             for acte in self._executer(
-                """
-                SELECT acte_id, type, annee, date_acte, commune_code_insee, commune_label,
-                       departement, depot, cote, vue, url_image
-                FROM actes WHERE acte_id IN (SELECT unnest(?::VARCHAR[]))
-                """,
+                f"SELECT {COLONNES_FICHE_ACTE} FROM actes "
+                "WHERE acte_id IN (SELECT unnest(?::VARCHAR[]))",
                 [sorted({m["acte_id"] for m in mentions})],
             )
         }
         return {m["mention_id"]: {**actes.get(m["acte_id"], {}), **m} for m in mentions}
+
+    def acte(self, acte_id: str) -> tuple[dict[str, Any], list[dict[str, Any]]] | None:
+        """Un acte et toutes ses mentions (le foyer entier pour un recensement)."""
+        actes = self._executer(
+            f"SELECT {COLONNES_FICHE_ACTE} FROM actes WHERE acte_id = ?", [acte_id]
+        )
+        if not actes:
+            return None
+        mentions = self._executer(
+            f"SELECT {COLONNES_FICHE_MENTION} FROM mentions WHERE acte_id = ?", [acte_id]
+        )
+        rang = {role: i for i, role in enumerate(ORDRE_ROLES)}
+        mentions.sort(
+            key=lambda m: (rang.get(m["role"], len(rang)), -(m["age"] or 0), m["mention_id"])
+        )
+        return actes[0], mentions

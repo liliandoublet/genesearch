@@ -64,14 +64,19 @@ src/doudoumil_search/
 │   ├── lieux.py           # référentiel des communes, codes anciens → commune actuelle
 │   └── silver.py          # dédoublonnage et normalisation d'une source
 ├── search/       # silver → gold, recherche        (jalon 4)
-│   ├── gold.py            # base DuckDB : personnes, prenoms, noms, lieux, calibration
+│   ├── gold.py            # base DuckDB : personnes, prenoms, noms, lieux
 │   ├── requete.py         # requête, « NOM Prénoms », résolution des lieux
 │   ├── score.py           # composantes R2-R5 (fonctions pures)
 │   ├── moteur.py          # canaux A/B/C + conjoint, score, fiches
-│   ├── calibration.py     # régression isotone (PAV), Brier
+│   ├── calibration.py     # régression isotone (PAV), Brier, gold/calibration.json
 │   ├── evaluation.py      # bruit de transcription, modes requete/donnees, calibration
 │   └── affichage.py       # mise en forme pour la ligne de commande
-├── api/          # FastAPI + interface web locale  (jalons 5 et 7)
+├── api/          # interface web locale            (jalons 5 et 7)
+│   ├── application.py     # FastAPI : pages, fiches, trouvailles, CSV, API JSON, sécurité
+│   ├── formulaire.py      # paramètres d'adresse → requête ; filtres et compteurs
+│   ├── trouvailles.py     # carnet SQLite data/perso/ (favori, note, verdict, requête)
+│   ├── gabarits/          # pages Jinja2
+│   └── statique/          # style.css, doudoumil.js (autocomplétion, copie), icône
 └── linkage/      # rapprochement GEDCOM, optionnel (jalon 9)
 ```
 
@@ -81,13 +86,15 @@ src/doudoumil_search/
 
 - **Dernière mise à jour** : 2026-10-10
 - **Jalons terminés** : 0 (socle), 1 (modèle pivot), 2 (ingestion INSEE décès), 3
-  (normalisation → silver), 4 (base gold et recherche) : **l'étape 1 du plan (chaîne complète
-  INSEE) est faite**, sous réserve de la vérification sur de vrais fichiers INSEE.
-- **Jalon en cours** : aucun — prochain : **jalon 5, interface web locale**.
-- **Prochaine action** : dès que data.gouv.fr est accessible, télécharger et ingérer les vrais
-  fichiers INSEE pour vérifier le format, puis lancer `doudoumil calibre` et mesurer les
-  performances sur les ≈ 25 M de décès. En parallèle : préalable P de PLAN.md (accès aux
-  sources), en commençant par l'export en masse de Socface.
+  (normalisation → silver), 4 (base gold et recherche), 5 (interface web locale), sous réserve
+  de la vérification sur de vrais fichiers INSEE.
+- **Jalon en cours** : aucun — prochain : **jalon 6, recensements Socface**, bloqué par le
+  préalable P (aucun export en masse connu). Le jalon 7 (images et localisateur de
+  registres) dépend aussi du préalable P (motifs d'adresses et IIIF des AD).
+- **Prochaine action** : l'utilisateur envoie la demande d'export Socface
+  (`docs/demande-export-socface.md`) ; dès que data.gouv.fr est accessible, ingérer les vrais
+  fichiers INSEE pour vérifier le format, lancer `doudoumil calibre` et mesurer les
+  performances sur les ≈ 25 M de décès.
 - **Accès réseau de l'environnement de développement** : data.gouv.fr et insee.fr sont
   bloqués (refus 403 du proxy) ; PyPI, GitHub et registry.npmjs.org passent. Le format INSEE
   et le catalogue data.gouv.fr restent donc à vérifier sur de vrais fichiers.
@@ -108,13 +115,18 @@ src/doudoumil_search/
     dans `data/ref/communes/`.
   - Recherche : canaux A (phonétique), B (noms proches dans la table `noms`), C (prénom +
     naissance + département), conjoint ; score en Python (`search/score.py`), poids
-    0,35/0,30/0,20/0,15, neutre 0,5 ; calibration isotone par source dans la base gold.
+    0,35/0,30/0,20/0,15, neutre 0,5 ; calibration isotone par source dans
+    `data/gold/calibration.json` (jamais dans la base : elle peut rester ouverte ailleurs).
   - Performances (4 M de décès synthétiques) : requêtes en 40 à 120 ms en médiane ; table
     `prenoms` dénormalisée pour le canal C. Ne pas relire `personnes` par listes
     d'identifiants : DuckDB parcourt alors toute la table.
   - Évaluation : `doudoumil evalue` (modes `requete` et `donnees`) ; non-régression en CI
     sur une population synthétique (`tests/population.py`), seuils dans
     `tests/test_evaluation.py`.
+  - Interface web : Jinja2 rendu serveur sans framework JS, recherches dans l'adresse (GET),
+    `127.0.0.1` seulement, hôtes et origines vérifiés ; trouvailles dans
+    `data/perso/trouvailles.sqlite`, à sauvegarder (jamais reconstruites) ; leurs verdicts
+    complètent la calibration. Tests navigateur : Playwright + Chromium (`navigateur`).
   - CLI `doudoumil` en `argparse` ; pools de processus en démarrage *spawn* (un *fork* après
     la création de fils d'exécution a bloqué les tests).
   - Conception de la recherche fixée dans PLAN.md, règles R1 à R5 :
@@ -134,6 +146,12 @@ src/doudoumil_search/
 ## Journal des sessions
 
 Une ligne par session de travail, la plus récente en haut.
+
+- 2026-10-10 — Jalon 5 : interface web locale (`doudoumil serve`) : recherche simple et
+  avancée, autocomplétion des lieux, filtres à compteurs, fiches d'actes avec citation,
+  « Mes trouvailles » (favoris, notes, verdicts), exports CSV, API JSON ; verdicts intégrés à
+  `doudoumil calibre` ; calibration déplacée dans `gold/calibration.json` ; tests Playwright
+  dans la CI ; demande d'export Socface rédigée (`docs/demande-export-socface.md`).
 
 - 2026-10-10 — Jalon 4 : base gold DuckDB, moteur à trois canaux plus conjoint, score R2-R5,
   calibration isotone, évaluation (bruit de transcription, modes requete/donnees),

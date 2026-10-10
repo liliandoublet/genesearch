@@ -21,6 +21,7 @@ import io
 import json
 import re
 import tarfile
+from bisect import bisect_left
 from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -58,6 +59,14 @@ class Commune:
     type: str
 
 
+@dataclass(frozen=True)
+class Suggestion:
+    """Proposition d'autocomplétion : texte affiché et valeur à placer dans le champ lieu."""
+
+    libelle: str
+    valeur: str
+
+
 class Referentiel:
     """Communes indexées par code et par nom normalisé."""
 
@@ -89,6 +98,46 @@ class Referentiel:
             nom = normaliser_lieu(brute["nom"])
             if nom:
                 self._par_nom[nom].add(code if type_ == "arrondissement-municipal" else cible)
+        self._suggestions = self._preparer_suggestions(communes)
+
+    def _preparer_suggestions(
+        self, communes: list[dict[str, Any]]
+    ) -> list[tuple[str, int, Suggestion]]:
+        """Entrées triées par nom normalisé : (clé, rang de priorité, suggestion)."""
+        entrees: list[tuple[str, int, Suggestion]] = []
+        for code, nom in self.departements.items():
+            if cle := normaliser_lieu(nom):
+                entrees.append((cle, 0, Suggestion(f"{nom} (département {code})", code)))
+        for brute in communes:
+            cle = normaliser_lieu(brute["nom"])
+            commune = self.commune(brute["code"])
+            if not cle or commune is None:
+                continue
+            valeur = f"{brute['nom']} ({commune.departement})"
+            libelle = valeur
+            if brute["type"] in ("commune-deleguee", "commune-associee"):
+                libelle = f"{valeur}, aujourd'hui {commune.nom}"
+            rang = 1 if brute["type"] == "commune-actuelle" else 2
+            entrees.append((cle, rang, Suggestion(libelle, valeur)))
+        return sorted(entrees, key=lambda e: (e[0], e[1], e[2].libelle))
+
+    def suggerer(self, texte: str, limite: int = 10) -> list[Suggestion]:
+        """Communes et départements dont le nom commence par ``texte`` (« quimp », « st malo »)."""
+        cle = normaliser_lieu(texte)
+        if not cle:
+            return []
+        trouvees: list[tuple[int, int, int, Suggestion]] = []
+        debut = bisect_left(self._suggestions, (cle,))
+        for position in range(debut, len(self._suggestions)):
+            nom, rang, suggestion = self._suggestions[position]
+            if not nom.startswith(cle):
+                break
+            # le nom exact d'abord, puis les départements, puis les noms les plus courts
+            trouvees.append((nom != cle, rang, len(nom), suggestion))
+        uniques: dict[str, Suggestion] = {}
+        for *_, suggestion in sorted(trouvees, key=lambda e: e[:3]):
+            uniques.setdefault(suggestion.valeur, suggestion)
+        return list(uniques.values())[:limite]
 
     @classmethod
     def depuis_dossier(cls, dossier: Path) -> "Referentiel":

@@ -33,7 +33,13 @@ from doudoumil_search.normalize.lieux import Referentiel
 from doudoumil_search.normalize.silver import construire_silver
 from doudoumil_search.pivot import Sexe
 from doudoumil_search.schemas import SCHEMA_ACTES, SCHEMA_MENTIONS
-from doudoumil_search.search.calibration import ajuster_isotone, appliquer, brier
+from doudoumil_search.search.calibration import (
+    ajuster_isotone,
+    appliquer,
+    brier,
+    chemin_calibration,
+    ecrire_calibration,
+)
 from doudoumil_search.search.gold import construire_gold
 from doudoumil_search.search.moteur import Moteur
 from doudoumil_search.search.requete import Lieu, Requete
@@ -100,6 +106,8 @@ class Mesures:
     rang_reciproque: float = 0.0
     brier: float | None = None
     paliers: dict[str, list[tuple[float, float]]] = field(default_factory=dict)
+    # (source, score, bonne réponse ?) des premiers résultats de chaque cas
+    couples: list[list[tuple[str, float, bool]]] = field(default_factory=list)
 
     @property
     def rappel_preselection(self) -> float:
@@ -229,7 +237,7 @@ def evaluer(moteur: Moteur, cas: Sequence[Cas]) -> Mesures:
             ]
         )
     # calibration ajustée sur les cas pairs, contrôlée sur les cas impairs
-    apprentissage = _paliers_par_source([c for i, c in enumerate(couples) if i % 2 == 0])
+    apprentissage = paliers_par_source([c for i, c in enumerate(couples) if i % 2 == 0])
     controle = [couple for i, c in enumerate(couples) if i % 2 == 1 for couple in c]
     probabilites, etiquettes = [], []
     for source, score, etiquette in controle:
@@ -239,11 +247,35 @@ def evaluer(moteur: Moteur, cas: Sequence[Cas]) -> Mesures:
             etiquettes.append(etiquette)
     if probabilites:
         mesures.brier = brier(probabilites, etiquettes)
-    mesures.paliers = _paliers_par_source(couples)
+    mesures.paliers = paliers_par_source(couples)
+    mesures.couples = couples
     return mesures
 
 
-def _paliers_par_source(
+def couples_des_verdicts(
+    moteur: Moteur, verdicts: Sequence[tuple[Requete, str, bool]]
+) -> list[list[tuple[str, float, bool]]]:
+    """Exemples réels de calibration tirés des verdicts de l'utilisateur.
+
+    Chaque verdict est (requête d'origine, mention jugée, « c'est bien lui » ?). La requête est
+    rejouée avec le moteur actuel, pour que les scores soient ceux d'aujourd'hui. Un « oui »
+    fait de la notice la bonne réponse et des autres premiers résultats de mauvaises ; un
+    « non » n'apprend que sur la notice jugée. Une notice disparue de la base est ignorée.
+    """
+    couples = []
+    for requete, mention_id, est_la_bonne in verdicts:
+        resultats = moteur.classer(requete)[:RANG_CALIBRATION]
+        jugee = next((r for r in resultats if r.mention_id == mention_id), None)
+        if jugee is None:
+            continue
+        if est_la_bonne:
+            couples.append([(r.source, r.score, r.mention_id == mention_id) for r in resultats])
+        else:
+            couples.append([(jugee.source, jugee.score, False)])
+    return couples
+
+
+def paliers_par_source(
     couples: Sequence[Sequence[tuple[str, float, bool]]],
 ) -> dict[str, list[tuple[float, float]]]:
     par_source: dict[str, tuple[list[float], list[bool]]] = defaultdict(lambda: ([], []))
@@ -352,11 +384,5 @@ def evaluer_donnees(
 def enregistrer_calibration(
     chemin_gold: Path, paliers: dict[str, list[tuple[float, float]]]
 ) -> None:
-    """Remplace la calibration des sources concernées dans la base gold."""
-    with duckdb.connect(str(chemin_gold)) as base:
-        for source, liste in paliers.items():
-            base.execute("DELETE FROM calibration WHERE source = ?", [source])
-            base.executemany(
-                "INSERT INTO calibration VALUES (?, ?, ?)",
-                [(source, score, probabilite) for score, probabilite in liste],
-            )
+    """Remplace la calibration des sources concernées, à côté de la base de recherche."""
+    ecrire_calibration(chemin_calibration(chemin_gold), paliers)

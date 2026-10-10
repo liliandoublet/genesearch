@@ -7,10 +7,44 @@ couples (score, bonne réponse ou non) tirés du jeu d'évaluation, une fois par
 Le résultat est une fonction en escalier croissante, stockée comme une liste de paliers
 ``(score, probabilité)`` : la probabilité d'un score est celle du dernier palier dont le score
 de départ est inférieur ou égal ; en dessous du premier palier, c'est la probabilité du premier.
+
+Les paliers sont rangés dans ``gold/calibration.json``, à côté de la base de recherche et non
+dedans : calibrer n'écrit jamais dans la base, qui peut donc rester ouverte (interface web) ;
+et une reconstruction de la base ne touche pas à la calibration.
 """
 
+import json
 from bisect import bisect_right
 from collections.abc import Sequence
+from pathlib import Path
+from typing import Final
+
+NOM_FICHIER: Final = "calibration.json"
+Paliers = dict[str, list[tuple[float, float]]]
+
+
+def chemin_calibration(chemin_base: Path) -> Path:
+    """Fichier de calibration associé à une base de recherche."""
+    return chemin_base.with_name(NOM_FICHIER)
+
+
+def lire_calibration(chemin: Path) -> Paliers:
+    """Paliers par source ; vide si le fichier n'existe pas encore."""
+    if not chemin.exists():
+        return {}
+    brute = json.loads(chemin.read_text(encoding="utf-8"))
+    return {source: [(s, p) for s, p in paliers] for source, paliers in brute.items()}
+
+
+def ecrire_calibration(chemin: Path, paliers: Paliers) -> None:
+    """Remplace les paliers des sources données, garde les autres ; écriture d'un bloc."""
+    toutes = {**lire_calibration(chemin), **paliers}
+    temporaire = chemin.with_name(chemin.name + ".en-cours")
+    temporaire.write_text(
+        json.dumps({s: [list(p) for p in liste] for s, liste in sorted(toutes.items())}, indent=1),
+        encoding="utf-8",
+    )
+    temporaire.replace(chemin)
 
 
 def ajuster_isotone(

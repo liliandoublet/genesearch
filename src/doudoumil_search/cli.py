@@ -11,6 +11,7 @@ Exemples ::
     doudoumil cherche "LE GOFF Marie" --naissance 1930-1932 --lieu Quimper
     doudoumil evalue                       # mesure la qualité de la recherche
     doudoumil calibre                      # transforme le score en probabilité
+    doudoumil serve                        # interface web sur http://127.0.0.1:8765
 
 Les données sont rangées sous ``data/`` (ou sous ``$DOUDOUMIL_DATA``).
 """
@@ -23,10 +24,12 @@ from collections.abc import Sequence
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
+from doudoumil_search.api.trouvailles import Carnet
 from doudoumil_search.config import (
     dossier_bronze,
     dossier_donnees,
     dossier_gold,
+    dossier_perso,
     dossier_referentiels,
     dossier_silver,
 )
@@ -40,6 +43,7 @@ from doudoumil_search.search.requete import (
     Lieu,
     LieuInconnu,
     Requete,
+    lire_intervalle,
     resoudre_lieu,
     separer_nom_prenoms,
 )
@@ -69,13 +73,10 @@ def charger_referentiel(racine: Path) -> lieux.Referentiel | None:
 
 def intervalle(texte: str) -> range:
     """``1970-1975`` → années 1970 à 1975 incluses ; ``2020`` → la seule année 2020."""
-    debut, _, fin = texte.partition("-")
     try:
-        a, b = int(debut), int(fin or debut)
-    except ValueError:
-        raise argparse.ArgumentTypeError(f"intervalle d'années invalide : {texte!r}") from None
-    if a > b:
-        raise argparse.ArgumentTypeError(f"intervalle à l'envers : {texte!r}")
+        a, b = lire_intervalle(texte)
+    except ValueError as erreur:
+        raise argparse.ArgumentTypeError(str(erreur)) from None
     return range(a, b + 1)
 
 
@@ -198,10 +199,40 @@ def commande_calibre(args: argparse.Namespace) -> int:
         journal.error("base de recherche absente : lancez « doudoumil index »")
         return 1
     mesures = evaluation.evaluer_requetes(chemin, args.cas, args.taux, args.graine)
-    evaluation.enregistrer_calibration(chemin, mesures.paliers)
-    for source, paliers in sorted(mesures.paliers.items()):
-        print(f"{source} : calibration en {len(paliers)} paliers")
+    # verdicts donnés dans l'interface web : des exemples réels, ajoutés aux synthétiques
+    carnet = Carnet(dossier_perso(args.donnees) / "trouvailles.sqlite")
+    verdicts = [
+        (t.requete, t.mention_id, t.verdict == "oui")
+        for t in carnet.verdicts()
+        if t.requete is not None
+    ]
+    with Moteur(chemin) as moteur:
+        reels = evaluation.couples_des_verdicts(moteur, verdicts)
+    paliers = evaluation.paliers_par_source([*mesures.couples, *reels])
+    evaluation.enregistrer_calibration(chemin, paliers)
+    for source, liste in sorted(paliers.items()):
+        print(f"{source} : calibration en {len(liste)} paliers")
+    print(f"exemples : {mesures.cas} synthétiques, {len(reels)} verdicts réels")
     print(mesures.resume())
+    return 0
+
+
+def commande_serve(args: argparse.Namespace) -> int:
+    import threading
+    import webbrowser
+
+    import uvicorn
+
+    from doudoumil_search.api.application import creer_application
+
+    adresse = f"http://127.0.0.1:{args.port}/"
+    print(f"interface web : {adresse} (Ctrl+C pour arrêter)")
+    if not args.sans_navigateur:
+        threading.Timer(1.0, webbrowser.open, [adresse]).start()
+    # 127.0.0.1 seulement : l'interface n'est pas accessible depuis le réseau
+    uvicorn.run(
+        creer_application(args.donnees), host="127.0.0.1", port=args.port, log_level="warning"
+    )
     return 0
 
 
@@ -301,6 +332,11 @@ def construire_analyseur() -> argparse.ArgumentParser:
     )
     evalue.set_defaults(fonction=commande_evalue)
     calibre.set_defaults(fonction=commande_calibre)
+
+    serve = commandes.add_parser("serve", help="ouvrir l'interface web locale")
+    serve.add_argument("--port", type=int, default=8765)
+    serve.add_argument("--sans-navigateur", action="store_true", help="ne pas ouvrir le navigateur")
+    serve.set_defaults(fonction=commande_serve)
     return analyseur
 
 

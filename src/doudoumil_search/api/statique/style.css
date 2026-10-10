@@ -1,0 +1,142 @@
+/* doudoumil — interface locale. Thème clair par défaut, sombre selon le système. */
+:root {
+  --fond: #f7f5f0;
+  --surface: #ffffff;
+  --texte: #1f2328;
+  --discret: #5d6470;
+  --bord: #d9d4c7;
+  --accent: #1d5c8c;
+  --accent-texte: #ffffff;
+  --succes: #1f7a3f;
+  --danger: #a3302a;
+  --attention: #8a5a00;
+  --pastille: #ece7da;
+  --rayon: 8px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fond: #16181c;
+    --surface: #1f2228;
+    --texte: #e7e9ec;
+    --discret: #a1a8b3;
+    --bord: #343a44;
+    --accent: #6fb0e8;
+    --accent-texte: #0d1117;
+    --succes: #5cc488;
+    --danger: #f08a82;
+    --attention: #e0b45c;
+    --pastille: #2b3039;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--fond);
+  color: var(--texte);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+a { color: var(--accent); }
+code { font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: 0.9em; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.masque { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+.entete {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5rem 1rem; flex-wrap: wrap;
+  padding: 0.75rem 1rem; background: var(--surface); border-bottom: 1px solid var(--bord);
+}
+.marque { font-weight: 700; font-size: 1.15rem; text-decoration: none; color: var(--texte); }
+.entete nav { display: flex; gap: 1rem; flex-wrap: wrap; }
+main { max-width: 1100px; margin: 0 auto; padding: 1rem; }
+h1 { font-size: 1.6rem; margin: 0.5rem 0; }
+h2 { font-size: 1rem; margin: 0 0 0.5rem; }
+.chapeau, .resume, .meta, .aide { color: var(--discret); }
+.alerte {
+  background: var(--pastille); border-left: 4px solid var(--attention);
+  padding: 0.75rem 1rem; border-radius: var(--rayon);
+}
+.erreur { color: var(--danger); margin: 0.25rem 0; }
+
+/* formulaire */
+.recherche { background: var(--surface); border: 1px solid var(--bord); border-radius: var(--rayon); padding: 1rem; margin-bottom: 1rem; }
+.ligne-principale { display: flex; gap: 0.5rem; }
+input, select, textarea {
+  font: inherit; color: inherit; background: var(--fond);
+  border: 1px solid var(--bord); border-radius: 6px; padding: 0.45rem 0.6rem; width: 100%;
+}
+.ligne-principale input { font-size: 1.1rem; }
+button {
+  font: inherit; cursor: pointer; border-radius: 6px; padding: 0.45rem 0.9rem;
+  border: 1px solid var(--accent); background: var(--accent); color: var(--accent-texte);
+}
+details { margin-top: 0.75rem; }
+summary { cursor: pointer; color: var(--accent); }
+.grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 0.75rem; margin-top: 0.75rem; }
+.grille label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.9rem; color: var(--discret); }
+
+/* résultats */
+.mise-en-page { display: grid; grid-template-columns: 220px 1fr; gap: 1.5rem; }
+.mise-en-page > * { min-width: 0; }
+@media (max-width: 760px) { .mise-en-page { grid-template-columns: 1fr; } }
+.filtres section { margin-bottom: 1.25rem; }
+.filtres ul { list-style: none; padding: 0; margin: 0; }
+.filtres li { display: flex; justify-content: space-between; gap: 0.5rem; padding: 0.1rem 0; }
+.filtres a { text-decoration: none; }
+.filtres a.actif { font-weight: 700; }
+.filtres a.actif::before { content: "✓ "; }
+.compte { color: var(--discret); font-variant-numeric: tabular-nums; }
+.liste { list-style: none; padding: 0; margin: 0; }
+.notice, .personne {
+  display: flex; gap: 1rem; align-items: flex-start;
+  background: var(--surface); border: 1px solid var(--bord); border-radius: var(--rayon);
+  padding: 0.75rem 1rem; margin-bottom: 0.6rem;
+}
+.personne.mise-en-avant { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
+.corps { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.corps p { margin: 0.15rem 0; }
+.nom { font-weight: 600; font-size: 1.05rem; text-decoration: none; }
+.sexe { color: var(--discret); font-weight: 400; }
+.confiance { width: 7.5rem; flex-shrink: 0; display: flex; flex-direction: column; font-size: 0.85rem; }
+.confiance strong { font-size: 0.95rem; }
+.tres-probable strong { color: var(--succes); }
+.probable strong { color: var(--accent); }
+.a-verifier strong { color: var(--attention); }
+.non-calibre strong { color: var(--discret); font-weight: 600; }
+.canal {
+  display: inline-block; font-size: 0.75rem; background: var(--pastille); color: var(--discret);
+  border-radius: 999px; padding: 0 0.5rem; margin-left: 0.3rem;
+}
+.canal.epouse, .canal.non { color: var(--danger); }
+.canal.oui { color: var(--succes); }
+.note-courte { margin-left: 0.5rem; }
+.actions { display: flex; gap: 0.25rem; flex-shrink: 0; }
+.icone {
+  background: transparent; color: var(--discret); border: 1px solid var(--bord);
+  width: 2.2rem; height: 2.2rem; padding: 0; font-size: 1rem;
+}
+.icone.actif { color: var(--attention); border-color: var(--attention); }
+.icone.actif.oui { color: var(--succes); border-color: var(--succes); }
+.icone.actif.non { color: var(--danger); border-color: var(--danger); }
+.pagination { display: flex; gap: 1rem; justify-content: center; margin: 1rem 0; }
+/* écran étroit : confiance et boutons sur une ligne, le texte de la notice dessous */
+@media (max-width: 600px) {
+  .notice, .personne { flex-wrap: wrap; gap: 0.5rem; }
+  .confiance { width: auto; flex-direction: row; align-items: baseline; gap: 0.5rem; }
+  .actions { margin-left: auto; }
+  .notice .corps, .personne .corps { flex-basis: 100%; order: 2; }
+  .citation { flex-direction: column; }
+}
+
+/* fiche */
+.provenance { display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 1rem; }
+.provenance dt { color: var(--discret); }
+.provenance dd { margin: 0; }
+.personnes { list-style: none; padding: 0; }
+.citation { display: flex; gap: 0.5rem; align-items: flex-start; margin: 0.5rem 0; }
+.citation code { flex: 1; background: var(--fond); border: 1px solid var(--bord); border-radius: 6px; padding: 0.4rem 0.6rem; white-space: normal; }
+.copier { white-space: nowrap; background: transparent; color: var(--accent); }
+.note { display: flex; gap: 0.5rem; align-items: flex-end; flex-wrap: wrap; }
+.note label { flex: 1; display: flex; flex-direction: column; font-size: 0.9rem; color: var(--discret); }
+.note button { background: transparent; color: var(--accent); }
+.note-longue { white-space: pre-wrap; }

@@ -16,14 +16,12 @@ Tables, construites depuis toutes les sources de la couche silver :
     4 millions de personnes : 234 ms contre 33 ms, pour une base 35 % plus grosse).
 ``noms``
     Les noms normalisés distincts et leur nombre d'occurrences (canal B).
-``calibration``
-    Table de calibration du score, par source (règle R5), vide tant que
-    ``doudoumil calibre`` n'a pas été lancé.
 ``meta``
     Date de construction, version du schéma, sources présentes.
 
-La base est construite dans un fichier temporaire puis remplace l'ancienne d'un bloc ; la
-calibration existante est conservée.
+La base est construite dans un fichier temporaire puis remplace l'ancienne d'un bloc. La
+calibration vit à côté, dans ``calibration.json`` (``search/calibration.py``), et n'est pas
+touchée par une reconstruction.
 """
 
 import logging
@@ -108,7 +106,7 @@ def construire_gold(
         # lecture des fiches des résultats retenus sans parcourir les tables entières
         base.execute("CREATE INDEX index_mentions ON mentions (mention_id)")
         base.execute("CREATE INDEX index_actes ON actes (acte_id)")
-        _copier_calibration(base, final)
+        base.execute("CREATE INDEX index_mentions_acte ON mentions (acte_id)")
         base.execute("CREATE TABLE meta (cle VARCHAR PRIMARY KEY, valeur VARCHAR)")
         base.executemany(
             "INSERT INTO meta VALUES (?, ?)",
@@ -226,17 +224,3 @@ def _table_prenoms(base: duckdb.DuckDBPyConnection) -> None:
         ORDER BY cle, p.departement
         """
     )
-
-
-def _copier_calibration(base: duckdb.DuckDBPyConnection, ancienne: Path) -> None:
-    """Crée la table de calibration, en reprenant celle de l'ancienne base si elle existe."""
-    base.execute("CREATE TABLE calibration (source VARCHAR, score DOUBLE, probabilite DOUBLE)")
-    if not ancienne.exists():
-        return
-    try:
-        chemin = str(ancienne).replace("'", "''")
-        base.execute(f"ATTACH '{chemin}' AS ancienne (READ_ONLY)")
-        base.execute("INSERT INTO calibration SELECT * FROM ancienne.calibration")
-        base.execute("DETACH ancienne")
-    except duckdb.Error as erreur:
-        journal.warning("calibration précédente non reprise : %s", erreur)

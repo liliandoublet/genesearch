@@ -29,3 +29,8 @@ def dossier_gold(racine: Path | None = None) -> Path:
 
 def dossier_referentiels(racine: Path | None = None) -> Path:
     return (racine or dossier_donnees()) / "ref"
+
+
+def dossier_perso(racine: Path | None = None) -> Path:
+    """Données personnelles (trouvailles) : jamais reconstruites, à sauvegarder."""
+    return (racine or dossier_donnees()) / "perso"

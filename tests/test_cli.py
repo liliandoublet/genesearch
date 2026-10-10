@@ -94,7 +94,7 @@ def test_index_et_cherche(tmp_path: Path, capsys: pytest.CaptureFixture[str]) ->
     assert "LE GOFF MARIE JOSEPHE (F)" in premiere
     assert "née le 02/03/1931 à QUIMPER" in premiere
     assert "décès le 15/01/2020 à Rennes (35)" in premiere
-    assert "INSEE · deces-extrait.txt · vue 1" in sortie
+    assert "INSEE · deces-extrait.txt · ligne 1" in sortie
     assert "nom 1,00" in sortie
 
 

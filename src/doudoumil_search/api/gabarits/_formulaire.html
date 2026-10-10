@@ -1,0 +1,49 @@
+{% set e = erreurs or {} %}
+<form class="recherche" action="/recherche" method="get" role="search">
+  <div class="ligne-principale">
+    <label for="q" class="masque">Nom et prénoms</label>
+    <input id="q" name="q" type="search" value="{{ formulaire.q }}"
+           placeholder="NOM Prénoms, par exemple LE GOFF Marie" autocomplete="off"
+           {% if not formulaire.avance %}autofocus{% endif %}>
+    <button type="submit">Rechercher</button>
+  </div>
+  {% if e.q %}<p class="erreur" role="alert">{{ e.q }}</p>{% endif %}
+  {% if e.base %}<p class="erreur" role="alert">{{ e.base }}</p>{% endif %}
+  <details {% if formulaire.avance or e %}open{% endif %}>
+    <summary>Recherche avancée</summary>
+    <div class="grille">
+      <label>Nom <input name="nom" value="{{ formulaire.nom }}" placeholder="remplace celui de la ligne principale"></label>
+      <label>Prénoms <input name="prenoms" value="{{ formulaire.prenoms }}"></label>
+      <label>Sexe
+        <select name="sexe">
+          <option value="">indifférent</option>
+          <option value="F" {% if formulaire.sexe == 'F' %}selected{% endif %}>femme</option>
+          <option value="M" {% if formulaire.sexe == 'M' %}selected{% endif %}>homme</option>
+        </select>
+      </label>
+      <label>Naissance <input name="naissance" value="{{ formulaire.naissance }}" placeholder="1931 ou 1930-1932" inputmode="numeric"></label>
+      {% if e.naissance %}<p class="erreur">{{ e.naissance }}</p>{% endif %}
+      <label>Lieu
+        <input name="lieu" value="{{ formulaire.lieu }}" placeholder="commune, code INSEE ou département"
+               list="suggestions-lieux" data-suggestions-lieux autocomplete="off">
+      </label>
+      {% if e.lieu %}<p class="erreur">{{ e.lieu }}</p>{% endif %}
+      <label>Années de l'acte <input name="annees" value="{{ formulaire.annees }}" placeholder="1970-1980" inputmode="numeric"></label>
+      {% if e.annees %}<p class="erreur">{{ e.annees }}</p>{% endif %}
+      <label>Nom du conjoint <input name="conjoint" value="{{ formulaire.conjoint }}" placeholder="pour une femme inscrite sous le nom de son mari"></label>
+      <label>Source
+        <select name="source">
+          <option value="">toutes</option>
+          {% for code, nom in noms_sources.items() %}
+          <option value="{{ code }}" {% if formulaire.source == code %}selected{% endif %}>{{ nom }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+    <datalist id="suggestions-lieux"></datalist>
+    {% if not referentiel_present %}
+    <p class="aide">Pour chercher par nom de commune, téléchargez le référentiel :
+      <code>doudoumil telecharge communes</code>. Les départements et codes INSEE fonctionnent sans.</p>
+    {% endif %}
+  </details>
+</form>

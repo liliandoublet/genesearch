@@ -114,3 +114,22 @@ def test_telechargement_du_referentiel(tmp_path: Path) -> None:
         (EXTRAIT / "communes.json").read_text()
     )
     assert Referentiel.depuis_dossier(dossier).code_actuel("01039") == "01138"
+
+
+def test_suggestions(referentiel: Referentiel) -> None:
+    assert [s.valeur for s in referentiel.suggerer("quimp")] == ["Quimper (29)"]
+    assert [s.valeur for s in referentiel.suggerer("st ma")] == ["Saint-Malo (35)"]
+    # un département passe avant les communes ; sa valeur est son code
+    assert referentiel.suggerer("finis")[0].valeur == "29"
+    assert referentiel.suggerer("finis")[0].libelle == "Finistère (département 29)"
+    # homonymes distingués par leur département
+    assert {s.valeur for s in referentiel.suggerer("saint-denis")} == {
+        "Saint-Denis (93)",
+        "Saint-Denis (974)",
+    }
+    # une commune déléguée indique sa commune actuelle
+    beon = referentiel.suggerer("beon")[0]
+    assert (beon.valeur, beon.libelle) == ("Béon (01)", "Béon (01), aujourd'hui Culoz-Béon")
+    assert referentiel.suggerer("") == []
+    assert referentiel.suggerer("zzz") == []
+    assert len(referentiel.suggerer("p", limite=2)) == 2

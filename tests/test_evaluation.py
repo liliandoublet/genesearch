@@ -9,7 +9,6 @@ et ne disent rien de la qualité sur de vraies données.
 import random
 from pathlib import Path
 
-import duckdb
 import polars as pl
 import pytest
 from rapidfuzz.distance import Levenshtein
@@ -17,6 +16,7 @@ from rapidfuzz.distance import Levenshtein
 from doudoumil_search.ingest.insee_deces import ingerer_fichier
 from doudoumil_search.normalize.lieux import Referentiel
 from doudoumil_search.normalize.silver import construire_silver
+from doudoumil_search.search.calibration import chemin_calibration, lire_calibration
 from doudoumil_search.search.evaluation import (
     bruiter_texte,
     copier_bronze,
@@ -107,10 +107,11 @@ def test_calibration_enregistree(population: Path, tmp_path: Path) -> None:
     mesures = evaluer_requetes(chemin, 100, taux=0.2, graine=2)
     assert set(mesures.paliers) == {"insee_deces"}
     enregistrer_calibration(chemin, mesures.paliers)
+    enregistrer_calibration(chemin, {"socface": [(0.0, 0.2)]})  # une autre source s'ajoute
     enregistrer_calibration(chemin, mesures.paliers)  # remplace, n'ajoute pas
-    with duckdb.connect(str(chemin), read_only=True) as base:
-        nombre = base.execute("SELECT count(*) FROM calibration").fetchone()
-    assert nombre == (len(mesures.paliers["insee_deces"]),)
+    paliers = lire_calibration(chemin_calibration(chemin))
+    assert paliers["insee_deces"] == mesures.paliers["insee_deces"]
+    assert paliers["socface"] == [(0.0, 0.2)]
     with Moteur(chemin) as moteur:
         notice = tirer_notices(chemin, 1, graine=3)[0]
         requete = Requete(nom=notice["nom_norm"], prenoms=tuple(notice["prenoms_norm"].split()))

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block titre %}Mes trouvailles{% endblock %}
+{% block contenu %}
+<h1>Mes trouvailles</h1>
+{% if not trouvailles %}
+<p class="chapeau">Aucune trouvaille pour l'instant. Depuis les résultats ou une fiche,
+  utilisez ★ pour garder une notice, ✓ ou ✗ pour dire si c'est la bonne personne.</p>
+{% else %}
+<p class="resume">{{ trouvailles | length }} notice{{ 's' if trouvailles | length > 1 }} ·
+  <a href="/trouvailles.csv">exporter en CSV</a> ·
+  les verdicts ✓ / ✗ servent à calibrer les probabilités (<code>doudoumil calibre</code>)</p>
+<ul class="liste">
+  {% for t in trouvailles %}
+  <li class="notice">
+    <div class="corps">
+      <a class="nom" href="/actes/{{ t.acte_id }}?mention={{ t.mention_id }}">{{ t.libelle }}</a>
+      <p class="meta">{{ noms_sources.get(t.source, t.source or '') }} · modifiée le {{ t.modifie_le[:10] }}
+        {% if t.favori %}<span class="canal">favori</span>{% endif %}
+        {% if t.verdict == 'oui' %}<span class="canal oui">c'est bien lui / elle</span>{% elif t.verdict == 'non' %}<span class="canal non">ce n'est pas lui / elle</span>{% endif %}</p>
+      {% if t.note %}<p class="note-longue">{{ t.note }}</p>{% endif %}
+    </div>
+    <form method="post" action="/trouvailles/{{ t.mention_id }}" class="actions">
+      <input type="hidden" name="acte_id" value="{{ t.acte_id }}">
+      <input type="hidden" name="libelle" value="{{ t.libelle }}">
+      <input type="hidden" name="retour" value="/trouvailles">
+      {% if t.verdict %}<button name="action" value="effacer" class="icone" title="Effacer le verdict">↺</button>{% endif %}
+      <button name="action" value="supprimer" class="icone" title="Supprimer cette trouvaille">🗑</button>
+    </form>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

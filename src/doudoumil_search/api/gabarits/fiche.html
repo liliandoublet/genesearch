@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block titre %}{{ evenement(acte) }}{% endblock %}
+{% block contenu %}
+{% if retour %}<p><a href="{{ retour }}">← retour aux résultats</a></p>{% endif %}
+<h1>{{ evenement(acte) | initiale }}</h1>
+<dl class="provenance">
+  <dt>Source</dt><dd>{{ noms_sources.get(acte.source, acte.source) }}</dd>
+  <dt>Provenance</dt><dd>{{ provenance(acte) }}</dd>
+  {% if acte.url_image | lien_sur %}<dt>Image</dt><dd><a href="{{ acte.url_image | lien_sur }}" target="_blank" rel="noopener noreferrer">voir l'original</a></dd>{% endif %}
+</dl>
+<h2>{% if personnes | length > 1 %}Personnes citées ({{ personnes | length }}){% else %}Personne citée{% endif %}</h2>
+<ul class="personnes">
+  {% for p, citation in personnes %}
+  {% set t = trouvailles.get(p.mention_id) %}
+  <li class="personne {{ 'mise-en-avant' if p.mention_id == mise_en_avant }}" id="m-{{ p.mention_id }}">
+    <div class="corps">
+      <p class="nom">{{ identite(p) }}{% if p.sexe %} <span class="sexe">({{ p.sexe }})</span>{% endif %}
+        {% if roles.get(p.role) %}<span class="canal">{{ roles.get(p.role) }}</span>{% endif %}
+        {% if p.nature_nom == 'marital' %}<span class="canal epouse">nom d'épouse</span>{% endif %}</p>
+      <p>{{ naissance(p) }}{% if p.age is not none %} · {{ p.age }} ans{% endif %}{% if p.profession %} · {{ p.profession }}{% endif %}</p>
+      {% if p.confiance_source is not none and p.confiance_source < 1 %}
+      <p class="meta">fiabilité estimée de la transcription : {{ pourcent(p.confiance_source, 0) }}</p>
+      {% endif %}
+      <div class="citation">
+        <code id="c-{{ loop.index }}">{{ citation }}</code>
+        <button type="button" class="copier" data-copier="c-{{ loop.index }}">Copier la citation</button>
+      </div>
+      <form method="post" action="/trouvailles/{{ p.mention_id }}" class="note">
+        <input type="hidden" name="acte_id" value="{{ acte.acte_id }}">
+        <input type="hidden" name="libelle" value="{{ identite(p) }}, {{ evenement(acte) }}">
+        <input type="hidden" name="source" value="{{ acte.source }}">
+        <input type="hidden" name="requete" value="{{ requete_json }}">
+        <input type="hidden" name="retour" value="{{ ici }}">
+        <label>Note <textarea name="note" rows="2">{{ t.note if t else '' }}</textarea></label>
+        <button name="action" value="note">Enregistrer la note</button>
+      </form>
+    </div>
+    {% with r_mention=p.mention_id, r_acte=acte.acte_id, r_libelle=identite(p) ~ ', ' ~ evenement(acte), r_source=acte.source, retour=ici %}
+    {% include "_trouvaille.html" %}
+    {% endwith %}
+  </li>
+  {% endfor %}
+</ul>
+{% endblock %}

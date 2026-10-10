@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titre %}Recherche{% endblock %} · doudoumil</title>
+  <link rel="icon" href="/statique/icone.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/statique/style.css">
+  <script src="/statique/doudoumil.js" defer></script>
+</head>
+<body>
+  <header class="entete">
+    <a class="marque" href="/">doudoumil</a>
+    <nav aria-label="Navigation principale">
+      <a href="/">Rechercher</a>
+      <a href="/trouvailles">Mes trouvailles</a>
+      <a href="/api/docs">API</a>
+    </nav>
+  </header>
+  <main>
+    {% if not base_presente %}
+    <p class="alerte">La base de recherche n'existe pas encore : lancez
+      <code>doudoumil index</code> après l'ingestion et la normalisation.</p>
+    {% endif %}
+    {% block contenu %}{% endblock %}
+  </main>
+</body>
+</html>

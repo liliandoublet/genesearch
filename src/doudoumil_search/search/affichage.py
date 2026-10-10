@@ -1,5 +1,6 @@
-"""Mise en forme des résultats pour la ligne de commande."""
+"""Mise en forme des notices, pour la ligne de commande et l'interface web."""
 
+from collections.abc import Callable
 from datetime import date
 from typing import Any
 
@@ -14,6 +15,12 @@ EVENEMENTS = {
     "recensement": "recensement",
     "autre": "acte",
 }
+SOURCES = {
+    "insee_deces": "Fichier des personnes décédées (INSEE)",
+    "socface": "Recensement de la population, transcription Socface (INED, FranceArchives)",
+}
+# Ce que désigne le champ « vue » selon la source : une ligne de fichier ou une vue d'archive.
+UNITES_VUE = {"insee_deces": "ligne"}
 ROLES = {
     "sujet": "",
     "pere": "père",
@@ -31,8 +38,12 @@ def _date(valeur: date | None) -> str | None:
     return valeur.strftime("%d/%m/%Y") if valeur else None
 
 
-def naissance(fiche: dict[str, Any]) -> str:
-    """« né le 02/03/1931 à QUIMPER », « née vers 1865-1866 »…"""
+def naissance(fiche: dict[str, Any], nommer: Callable[[str], str | None] | None = None) -> str:
+    """« né le 02/03/1931 à QUIMPER », « née vers 1865-1866 »…
+
+    Si la source ne donne que le code du lieu, ``nommer`` (le référentiel des communes) le
+    remplace par le nom de la commune.
+    """
     accord = "e" if fiche.get("sexe") == "F" else ""
     if fiche.get("date_naissance"):
         texte = f"né{accord} le {_date(fiche['date_naissance'])}"
@@ -41,7 +52,10 @@ def naissance(fiche: dict[str, Any]) -> str:
         texte = f"né{accord} en {mini}" if mini == maxi else f"né{accord} vers {mini}-{maxi}"
     else:
         texte = ""
-    lieu = fiche.get("lieu_naissance_brut") or fiche.get("lieu_naissance_code_insee")
+    lieu = fiche.get("lieu_naissance_brut")
+    code = fiche.get("lieu_naissance_code_insee")
+    if not lieu and code:
+        lieu = (nommer(code) if nommer else None) or code
     if lieu:
         texte = f"{texte} à {lieu}" if texte else f"né{accord} à {lieu}"
     return texte
@@ -56,27 +70,46 @@ def evenement(fiche: dict[str, Any]) -> str:
     return f"{nature} {quand}" + (f" à {lieu}{departement}" if lieu else "")
 
 
+def identite(fiche: dict[str, Any]) -> str:
+    return f"{fiche.get('nom_brut') or '?'} {fiche.get('prenoms_bruts') or ''}".strip()
+
+
 def provenance(fiche: dict[str, Any]) -> str:
     morceaux = [fiche.get("depot"), fiche.get("cote")]
     if fiche.get("vue"):
-        morceaux.append(f"vue {fiche['vue']}")
+        morceaux.append(f"{UNITES_VUE.get(fiche.get('source') or '', 'vue')} {fiche['vue']}")
     if fiche.get("url_image"):
         morceaux.append(fiche["url_image"])
     return " · ".join(m for m in morceaux if m)
+
+
+def citation(fiche: dict[str, Any], consulte_le: date) -> str:
+    """Citation de source prête à copier dans un arbre ou une note."""
+    source = SOURCES.get(fiche.get("source") or "", fiche.get("source") or "source inconnue")
+    morceaux = [source]
+    if fiche.get("depot") and fiche["depot"] not in source:
+        morceaux.append(fiche["depot"])
+    if fiche.get("cote"):
+        morceaux.append(fiche["cote"])
+    if fiche.get("vue"):
+        morceaux.append(f"{UNITES_VUE.get(fiche.get('source') or '', 'vue')} {fiche['vue']}")
+    if fiche.get("url_image"):
+        morceaux.append(fiche["url_image"])
+    phrase = f"{identite(fiche)}, {evenement(fiche)}. {', '.join(morceaux)}."
+    return f"{phrase} Consulté le {_date(consulte_le)}."
 
 
 def formater(rang: int, resultat: Resultat, details: bool = False) -> str:
     """Deux lignes par résultat (trois avec les détails du score)."""
     fiche = resultat.fiche
     sexe = f" ({fiche['sexe']})" if fiche.get("sexe") else ""
-    identite = f"{fiche.get('nom_brut') or '?'} {fiche.get('prenoms_bruts') or ''}".strip()
     role = ROLES.get(resultat.role, "")
     confiance = (
         f"{resultat.libelle} {pourcent(resultat.probabilite, 0)}"
         if resultat.probabilite is not None
         else f"{resultat.libelle} (score {resultat.score:.2f})".replace(".", ",")
     )
-    morceaux = [identite + sexe, naissance(fiche), evenement(fiche)]
+    morceaux = [identite(fiche) + sexe, naissance(fiche), evenement(fiche)]
     if role:
         morceaux.append(role)
     lignes = [

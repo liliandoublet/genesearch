@@ -16,5 +16,7 @@ jobs:
         run: uv run ruff check
       - name: Format
         run: uv run ruff format --check
+      - name: Navigateur pour les tests de l'interface
+        run: uv run playwright install --with-deps chromium
       - name: Tests
         run: uv run pytest

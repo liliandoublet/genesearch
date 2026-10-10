@@ -7,7 +7,7 @@ actuelles et en départements à l'aide du référentiel des communes.
 
 import re
 from dataclasses import dataclass, field
-from typing import Final
+from typing import Any, Final
 
 from doudoumil_search.normalize.lieux import Referentiel
 from doudoumil_search.normalize.noms import normaliser_nom
@@ -24,6 +24,21 @@ MOTIF_COMMUNE_ET_DEPARTEMENT: Final = re.compile(r"^(.*?)\s*\((\w{2,3})\)\s*$")
 
 class LieuInconnu(ValueError):
     """Le lieu demandé ne correspond à aucune commune ni à aucun département."""
+
+
+def lire_intervalle(texte: str) -> tuple[int, int]:
+    """« 1930-1932 » → (1930, 1932) ; « 1931 » ou « 1931- » → (1931, 1931).
+
+    Lève ``ValueError`` avec un message en français si le texte n'est pas un intervalle.
+    """
+    debut, _, fin = texte.strip().partition("-")
+    try:
+        a, b = int(debut), int(fin or debut)
+    except ValueError:
+        raise ValueError(f"intervalle d'années invalide : « {texte} »") from None
+    if a > b:
+        raise ValueError(f"intervalle à l'envers : « {texte} »")
+    return a, b
 
 
 @dataclass(frozen=True)
@@ -67,6 +82,40 @@ class Requete:
     conjoint: str | None = None
     sources: tuple[str, ...] = ()
     limite: int = 20
+
+    def vers_dict(self) -> dict[str, Any]:
+        """Forme JSON de la requête, pour la conserver avec une trouvaille."""
+        return {
+            "nom": self.nom,
+            "prenoms": list(self.prenoms),
+            "sexe": self.sexe.value if self.sexe else None,
+            "naissance": list(self.naissance) if self.naissance else None,
+            "annees": list(self.annees) if self.annees else None,
+            "lieu": {
+                "communes": sorted(self.lieu.communes),
+                "departements": sorted(self.lieu.departements),
+            },
+            "conjoint": self.conjoint,
+            "sources": list(self.sources),
+        }
+
+    @classmethod
+    def depuis_dict(cls, donnees: dict[str, Any]) -> "Requete":
+        """Inverse de ``vers_dict`` : les valeurs sont déjà normalisées."""
+        lieu = donnees.get("lieu") or {}
+        naissance, annees = donnees.get("naissance"), donnees.get("annees")
+        return cls(
+            nom=donnees.get("nom"),
+            prenoms=tuple(donnees.get("prenoms") or ()),
+            sexe=Sexe(donnees["sexe"]) if donnees.get("sexe") else None,
+            naissance=(naissance[0], naissance[1]) if naissance else None,
+            annees=(annees[0], annees[1]) if annees else None,
+            lieu=Lieu(
+                frozenset(lieu.get("communes") or ()), frozenset(lieu.get("departements") or ())
+            ),
+            conjoint=donnees.get("conjoint"),
+            sources=tuple(donnees.get("sources") or ()),
+        )
 
     @classmethod
     def creer(

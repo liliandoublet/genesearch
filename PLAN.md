@@ -57,11 +57,12 @@ Ce travail d'enquête conditionne les jalons 6 à 8. Il se fait pendant qu'on co
 sur INSEE, dont l'accès est certain. Les résultats sont consignés dans le tableau du §2 et dans
 CLAUDE.md.
 
-- [ ] **Socface** : vérifier s'il existe un export officiel, une API, ou si les notices sont
+- [~] **Socface** : vérifier s'il existe un export officiel, une API, ou si les notices sont
   dans le dump RDF (`data-dump.francearchives.gouv.fr/rdf/`) ou le point SPARQL
-  (`sparql.francearchives.gouv.fr`) ; relever la licence. Si rien n'existe : écrire à
-  FranceArchives et à l'INED pour demander un export (démarche à faire par toi, je prépare le
-  message).
+  (`sparql.francearchives.gouv.fr`) ; relever la licence. Message de demande d'export rédigé
+  (`docs/demande-export-socface.md`), **à envoyer par toi** à FranceArchives et à l'INED ; le
+  dump RDF et le SPARQL restent à examiner (sites inaccessibles depuis l'environnement de
+  développement).
 - [ ] **Registres matricules** (Base de noms) : mêmes vérifications.
 - [ ] **Morts pour la France** : trouver la page de téléchargement actuelle, le format, la
   licence.
@@ -190,7 +191,7 @@ trois canaux indépendants, puis les classe tous avec le même score :
   dans l'autre.
 - **Calibration** : sur le jeu d'évaluation, les couples (score, bonne réponse ou non) servent
   à ajuster une régression isotone, une par source, qui transforme le score en probabilité.
-  La table de calibration est enregistrée dans la base gold.
+  La calibration est enregistrée dans `data/gold/calibration.json`, à côté de la base.
 - Affichage : probabilité calibrée et libellé (« très probable » ≥ 0,9, « probable » ≥ 0,6,
   « à vérifier » en dessous). Tant qu'une source n'est pas calibrée, on n'affiche que le rang
   et la mention « non calibré », jamais un pourcentage.
@@ -339,7 +340,7 @@ chaque résultat portant un score calibré et sa provenance (voir R1 à R5).
   les identifiants pour lire les fiches), table `personnes` triée par clé phonétique (DuckDB
   saute les blocs inutiles), table `prenoms` (clés phonétiques, canal C), table `noms` des
   noms distincts avec leur nombre d'occurrences (canal B), table `lieux` (codes ramenés à la
-  commune actuelle), `calibration` conservée d'une reconstruction à l'autre, `meta`
+  commune actuelle), `meta` ; la calibration vit à côté, dans `calibration.json`
 - [x] Présélection à trois canaux A, B, C, plus un canal « conjoint » (R2), union et
   dédoublonnage des candidats, ordre déterministe (R1)
 - [x] Composantes du score : nom (Jaro-Winkler), prénoms (R4), naissance (R3), lieu ; valeur
@@ -367,8 +368,8 @@ chaque résultat portant un score calibré et sa provenance (voir R1 à R5).
   fichiers
 
 **Décisions tranchées**
-- Base gold reconstruite entièrement à chaque `doudoumil index` (seule la calibration est
-  reprise) ; la mise à jour incrémentale est reportée au jalon 10 si la durée le justifie.
+- Base gold reconstruite entièrement à chaque `doudoumil index` (la calibration, rangée à
+  côté, n'est pas touchée) ; la mise à jour incrémentale est reportée au jalon 10 si la durée le justifie.
 - Régression isotone codée dans le projet (algorithme PAV), sans scikit-learn.
 - Canal B : distance d'édition ≤ 2, ramenée à 1 pour les noms de 4 lettres ou moins (deux
   erreurs sur un nom court acceptent presque tout), ou Jaro-Winkler ≥ 0,85 ; longueur à ±3.
@@ -398,30 +399,46 @@ notice volontairement mal orthographiée retrouvée par le canal B.
 **Objectif** : remplacer l'écran de recherche de Filae par une interface dans ton navigateur.
 À la fin de ce jalon, le moteur sert au quotidien, au moins pour les décès depuis 1970.
 
-- [ ] Ajouter `fastapi`, `uvicorn` et `jinja2` ; serveur limité à `127.0.0.1`
-- [ ] `doudoumil serve` démarre le serveur et ouvre le navigateur
-- [ ] **Recherche simple** : un champ « nom prénom » ; **recherche avancée** : nom, prénoms,
+- [x] Ajouter `fastapi`, `uvicorn` et `jinja2` ; serveur limité à `127.0.0.1`
+- [x] `doudoumil serve` démarre le serveur et ouvre le navigateur
+- [x] **Recherche simple** : un champ « nom prénom » ; **recherche avancée** : nom, prénoms,
   sexe, naissance (année ou intervalle), lieu (commune ou département, avec autocomplétion sur
   le référentiel COG), période de l'acte, type de source, nom du conjoint (R2)
-- [ ] **Résultats** : tableau trié par probabilité, avec libellé (R5), source, date, lieu, rôle,
+- [x] **Résultats** : tableau trié par probabilité, avec libellé (R5), source, date, lieu, rôle,
   canaux de présélection (R1), lien vers l'image ; filtres latéraux avec compteurs (source,
   département, décennie) ; pagination
-- [ ] **Fiche notice** : l'acte, toutes les personnes qui y figurent, la provenance complète,
+- [x] **Fiche notice** : l'acte, toutes les personnes qui y figurent, la provenance complète,
   le lien vers l'image et une citation de source prête à copier
-- [ ] **Mes trouvailles** : favoris, notes et verdict « c'est bien lui / ce n'est pas lui »,
+- [x] **Mes trouvailles** : favoris, notes et verdict « c'est bien lui / ce n'est pas lui »,
   stockés dans une base personnelle séparée de gold. Les identifiants étant déterministes, une
   reconstruction de gold ne perd rien. Les verdicts alimentent la calibration (R5)
-- [ ] Export CSV des résultats et des trouvailles
-- [ ] API JSON sous-jacente (`/api/recherche`, `/api/actes/{acte_id}`), documentée par OpenAPI
-- [ ] Tests : `TestClient` pour l'API, Playwright (Chromium déjà installé) pour les parcours
+- [x] Export CSV des résultats et des trouvailles
+- [x] API JSON sous-jacente (`/api/recherche`, `/api/actes/{acte_id}`), documentée par OpenAPI
+- [x] Tests : `TestClient` pour l'API, Playwright (Chromium déjà installé) pour les parcours
   principaux (rechercher, ouvrir une fiche, marquer une trouvaille)
 - [ ] (optionnel) Carte de répartition d'un nom par département et par décennie
 
-**Décisions**
-- Pages rendues côté serveur (Jinja2, avec un peu de htmx) ou application JavaScript séparée.
-  Proposition : rendu serveur, pour éviter toute chaîne de compilation JavaScript.
+**Décisions tranchées**
+- Pages rendues côté serveur avec Jinja2, **sans htmx ni framework JavaScript** : de simples
+  formulaires, et un petit script (`statique/doudoumil.js`) pour l'autocomplétion des lieux,
+  la copie des citations et des adresses sans paramètres vides.
+- Les recherches passent dans l'adresse (`GET`) : elles sont partageables et rejouables, et
+  la même lecture du formulaire sert aux pages, à l'API JSON et à l'export CSV.
+- « Mes trouvailles » dans une base SQLite séparée (`data/perso/trouvailles.sqlite`), avec la
+  requête qui a fait apparaître chaque notice ; un verdict ✓ / ✗ y devient un exemple réel
+  ajouté aux exemples synthétiques par `doudoumil calibre`.
+- Calibration déplacée de la base gold vers `data/gold/calibration.json` : calibrer pendant
+  que l'interface tient la base ouverte échouait (DuckDB refuse un écrivain quand la base est
+  ouverte ailleurs). Le moteur relit ce fichier s'il change.
+- Sécurité du serveur local : écoute sur `127.0.0.1`, hôtes autorisés `localhost` et
+  `127.0.0.1` (rebond DNS), envois de formulaires d'une autre origine refusés, adresses de
+  retour limitées aux chemins locaux.
+- Filtres de la colonne de gauche calculés sur tous les candidats classés ; départements
+  nommés ; lieux de naissance codés affichés avec le nom de la commune.
+- Tests navigateur avec Playwright et le Chromium de l'environnement (installé par
+  `playwright install chromium` dans la CI).
 
-**Démo** : `uv run doudoumil serve`, recherche d'une personne décédée, fiche, trouvaille notée.
+**Démo** : `uv run doudoumil serve`, recherche d'une personne décédée, fiche, trouvaille notée. Voir le README et `docs/captures/`.
 
 ---
 

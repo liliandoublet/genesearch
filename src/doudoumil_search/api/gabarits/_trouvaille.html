@@ -1,0 +1,15 @@
+{# Boutons d'une notice : favori et verdict. Variables : r_mention, r_acte, r_libelle, r_source, t, retour, requete_json #}
+<form method="post" action="/trouvailles/{{ r_mention }}" class="actions">
+  <input type="hidden" name="acte_id" value="{{ r_acte }}">
+  <input type="hidden" name="libelle" value="{{ r_libelle }}">
+  <input type="hidden" name="source" value="{{ r_source }}">
+  <input type="hidden" name="requete" value="{{ requete_json }}">
+  <input type="hidden" name="retour" value="{{ retour }}">
+  <button name="action" value="favori" class="icone {% if t and t.favori %}actif{% endif %}"
+          aria-pressed="{{ 'true' if t and t.favori else 'false' }}"
+          title="{{ 'Retirer des favoris' if t and t.favori else 'Ajouter aux favoris' }}">★</button>
+  <button name="action" value="oui" class="icone {% if t and t.verdict == 'oui' %}actif oui{% endif %}"
+          aria-pressed="{{ 'true' if t and t.verdict == 'oui' else 'false' }}" title="C'est bien la personne cherchée">✓</button>
+  <button name="action" value="non" class="icone {% if t and t.verdict == 'non' %}actif non{% endif %}"
+          aria-pressed="{{ 'true' if t and t.verdict == 'non' else 'false' }}" title="Ce n'est pas la personne cherchée">✗</button>
+</form>
