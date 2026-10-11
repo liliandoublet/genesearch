@@ -1,8 +1,8 @@
-"""Sauvegarde et restauration de tes données personnelles : trouvailles et relevés.
+"""Sauvegarde et restauration de tes données personnelles : dossiers de recherche et relevés.
 
 Tout le reste se reconstruit (``doudoumil pipeline``), mais pas ces deux dossiers :
 
-- ``data/perso/`` : « Mes trouvailles » (``trouvailles.sqlite``) ;
+- ``data/perso/`` : les dossiers de recherche (``dossiers/*.sqlite``) et le dossier actif ;
 - ``data/releves/`` : tes tableurs de relevés et leurs fichiers de correspondance.
 
 Une sauvegarde est une archive zip datée qui contient ces dossiers et un fichier

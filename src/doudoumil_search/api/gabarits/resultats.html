@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 {% block titre %}{{ formulaire.q or formulaire.nom or formulaire.prenoms }}{% endblock %}
 {% block contenu %}
+{% if personne_cible %}
+<p class="bandeau">Recherche pour <a href="/dossiers/{{ dossier_courant.identifiant }}#p-{{ personne_cible.personne_id }}">{{ personne_cible.libelle }}</a>
+  (dossier « {{ dossier_courant.nom }} ») : les notices marquées ★, ✓ ou ✗ lui sont rattachées.</p>
+{% endif %}
 {% include "_formulaire.html" %}
 <div class="mise-en-page">
   <aside class="filtres" aria-label="Filtres">
@@ -39,7 +43,7 @@
           <span>{% if r.probabilite is not none %}{{ pourcent(r.probabilite, 0) }}{% else %}score {{ r.score | score }}{% endif %}</span>
         </div>
         <div class="corps">
-          <a class="nom" href="/actes/{{ r.acte_id }}?mention={{ r.mention_id }}&amp;retour={{ retour | urlencode }}&amp;requete={{ requete_json | urlencode }}">
+          <a class="nom" href="/actes/{{ r.acte_id }}?mention={{ r.mention_id }}&amp;retour={{ retour | urlencode }}&amp;requete={{ requete_json | urlencode }}{% if formulaire.personne %}&amp;personne={{ formulaire.personne | urlencode }}{% endif %}">
             {{ identite(f) }}{% if f.sexe %} <span class="sexe">({{ f.sexe }})</span>{% endif %}</a>
           <p>{{ naissance(f) }}{% if naissance(f) %} · {% endif %}{{ evenement(f) }}{% if roles.get(r.role) %} · {{ roles.get(r.role) }}{% endif %}</p>
           <p class="meta">{{ f.titre_source or noms_sources.get(r.source, r.source) }} · {{ provenance(f) }}

@@ -13,7 +13,8 @@
     <a class="marque" href="/">doudoumil</a>
     <nav aria-label="Navigation principale">
       <a href="/">Rechercher</a>
-      <a href="/trouvailles">Mes trouvailles</a>
+      <a href="/dossiers/{{ dossier_actif.identifiant }}" title="Dossier actif : les trouvailles y sont rangées">Dossier : {{ dossier_actif.nom }}</a>
+      <a href="/dossiers">Tous les dossiers</a>
       <a href="/api/docs">API</a>
     </nav>
   </header>

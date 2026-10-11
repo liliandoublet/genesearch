@@ -9,7 +9,9 @@ ouvrir le bon registre aux archives et citer les sources.
 Ce qui fonctionne déjà : recherche approchée dans le fichier des décès INSEE (depuis 1970) et
 dans tes relevés en CSV ou Excel, tolérante aux variantes orthographiques ; chaque résultat
 porte un niveau de confiance et chaque notice garde sa provenance (cote, vue, lien) ;
-interface web locale avec « Mes trouvailles », exports et sauvegarde.
+**dossiers de recherche** (un par client ou par famille) avec les personnes recherchées,
+les notices retenues et les actes trouvés sur Filae ; interface web locale, exports et
+sauvegarde.
 
 La feuille de route est dans [`PLAN.md`](PLAN.md) (dossiers par client, vérification en lot,
 liens vers les sites et les archives, rendu pour le client) ; les essais à faire sur ton
@@ -58,7 +60,7 @@ Tout est écrit sous `data/`, qui n'est pas versionné :
 | `data/silver/` | Parquet pivot avec les champs normalisés (`nom_norm`, `nom_phonetique`…) |
 | `data/gold/` | base DuckDB indexée pour la recherche |
 | `data/releves/` | tes relevés (tableurs et fichiers de correspondance) : à sauvegarder |
-| `data/perso/` | tes trouvailles (favoris, notes, verdicts) : à sauvegarder |
+| `data/perso/` | tes dossiers de recherche (un fichier par dossier) : à sauvegarder |
 | `data/sauvegardes/` | archives de `doudoumil sauvegarde` (à copier hors de l'ordinateur) |
 
 Une couche ne modifie jamais la précédente : chaque étape produit de nouveaux fichiers.
@@ -141,9 +143,8 @@ uv run doudoumil serve        # ouvre http://127.0.0.1:8765 dans le navigateur
 - **Résultats** classés, avec filtres par source, département et décennie, et export CSV.
 - **Fiche** de l'acte avec toutes les personnes citées (le foyer entier pour un recensement),
   la provenance et une citation prête à copier.
-- **Mes trouvailles** : ★ favori, note, verdict ✓ / ✗. Elles sont gardées dans
-  `data/perso/trouvailles.sqlite` (à sauvegarder) ; les verdicts servent à
-  `doudoumil calibre`.
+- **Trouvailles** : ★ favori, note, verdict ✓ / ✗, rangés dans le dossier de recherche actif
+  (jalon 11) ; les verdicts servent à `doudoumil calibre`.
 - **API JSON** documentée sur `/api/docs`.
 
 ![Fiche d'un ménage de recensement](docs/captures/fiche-menage.png)
@@ -202,9 +203,37 @@ base de recherche : à jour
 
 Un nouveau mois de décès INSEE ou un relevé complété n'entraîne que la conversion de ce fichier,
 puis la mise à jour de la normalisation et de la base. La sauvegarde (archive zip) contient
-tout ce qui ne se reconstruit pas : tes trouvailles (`data/perso/`) et tes relevés
-(`data/releves/`) ; elle se télécharge aussi depuis la page « Mes trouvailles ». La
-restauration sauvegarde d'abord l'état actuel.
+tout ce qui ne se reconstruit pas : tes dossiers de recherche (`data/perso/`) et tes relevés
+(`data/releves/`) ; elle se télécharge aussi depuis la page d'un dossier. La restauration
+sauvegarde d'abord l'état actuel.
+
+### Jalon 11 — dossiers de recherche
+
+Un dossier par client ou par famille : les personnes recherchées, les notices retenues dans
+l'atelier, les actes trouvés sur Filae ou ailleurs (saisis à la main), les notes et les
+citations. Chaque dossier est un fichier à part (`data/perso/dossiers/<nom>.sqlite`) : on
+l'exporte ou on le supprime sans toucher aux autres.
+
+```bash
+uv run doudoumil dossier cree "Famille Le Goff" --client "M. et Mme Martin"   # et l'active
+uv run doudoumil dossier liste
+uv run doudoumil dossier exporte famille-le-goff     # tableau CSV + copie réimportable
+uv run doudoumil dossier supprime famille-le-goff    # fin de mission, confirmation demandée
+```
+
+Dans l'interface, « Chercher » sur une personne lance la recherche pré-remplie ; les notices
+marquées ★, ✓ ou ✗ depuis ces résultats lui sont rattachées, même si le dossier actif change
+entre-temps.
+
+![Recherche lancée depuis une personne d'un dossier](docs/captures/dossier-recherche.png)
+
+La page du dossier regroupe les notices par personne, avec leur citation : ici une notice de
+l'atelier (décès INSEE) et un acte de naissance repéré sur Filae, saisi avec sa cote aux
+archives.
+
+![Page d'un dossier de recherche](docs/captures/dossier.png)
+
+Les trouvailles d'avant les dossiers sont reprises dans un dossier « Personnel ».
 
 ## Arborescence
 
@@ -213,12 +242,13 @@ src/doudoumil_search/
 ├── pivot.py        # modèle pivot (Acte, Mention) et fabriquer_id()
 ├── schemas.py      # schémas Parquet
 ├── cli.py          # commande doudoumil
+├── dossiers.py     # dossiers de recherche : personnes, notices, export (un fichier par dossier)
 ├── pipeline.py     # doudoumil pipeline : ne refait que ce qui a changé
-├── sauvegarde.py   # sauvegarde et restauration des trouvailles et des relevés
+├── sauvegarde.py   # sauvegarde et restauration des dossiers et des relevés
 ├── ingest/         # connecteurs (INSEE décès, relevés CSV/Excel) et téléchargement
 ├── normalize/      # noms, prénoms, clé phonétique, dates, lieux, étape silver
 ├── search/         # base gold, moteur, score, calibration, évaluation
-├── api/            # interface web locale : pages, trouvailles, API JSON
+├── api/            # interface web locale : recherche, fiches, dossiers, API JSON
 └── linkage/        # rapprochement avec un arbre GEDCOM (jalon 9, optionnel)
 tests/              # tests, fichiers d'exemple et population synthétique
 notebooks/          # exploration de la qualité des sources

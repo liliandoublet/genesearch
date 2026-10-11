@@ -121,8 +121,8 @@ def test_parcours_complet(page: object) -> None:
     p.wait_for_load_state()  # type: ignore[attr-defined]
     assert "Quimper" in p.input_value("textarea[name=note]")  # type: ignore[attr-defined]
 
-    # mes trouvailles
-    p.click("text=Mes trouvailles")  # type: ignore[attr-defined]
+    # le dossier actif (« Personnel ») a gardé la notice
+    p.click("text=Dossier : Personnel")  # type: ignore[attr-defined]
     texte = p.inner_text("main")  # type: ignore[attr-defined]
     assert "LE GOFF MARIE JOSEPHE" in texte
     assert "chercher l'acte de naissance à Quimper" in texte
@@ -138,3 +138,54 @@ def test_affichage_sur_telephone(page: object) -> None:
         "document.documentElement.scrollWidth > window.innerWidth"
     )
     assert not debordement
+
+
+def test_parcours_dossier(page: object) -> None:
+    """Créer un dossier, y chercher une personne, garder une notice, en saisir une, supprimer."""
+    p = page  # type: ignore[assignment]
+    p.goto("/dossiers")  # type: ignore[attr-defined]
+    p.fill("input[name=nom]", "Famille Moreau")  # type: ignore[attr-defined]
+    p.click("text=Créer et activer")  # type: ignore[attr-defined]
+    p.wait_for_url(lambda url: url.endswith("/dossiers/famille-moreau"))  # type: ignore[attr-defined]
+    assert "Dossier : Famille Moreau" in p.inner_text("header")  # type: ignore[attr-defined]
+
+    # personne recherchée, puis recherche lancée depuis elle
+    p.fill("#ajout-personne input[name=nom]", "MOREAU")  # type: ignore[attr-defined]
+    p.fill("#ajout-personne input[name=prenoms]", "Jean")  # type: ignore[attr-defined]
+    p.fill("#ajout-personne input[name=naissance]", "1925")  # type: ignore[attr-defined]
+    p.click("#ajout-personne button")  # type: ignore[attr-defined]
+    p.wait_for_load_state()  # type: ignore[attr-defined]
+    p.click("a.bouton:has-text('Chercher')")  # type: ignore[attr-defined]
+    p.wait_for_url(lambda url: "/recherche?" in url)  # type: ignore[attr-defined]
+    assert "Recherche pour MOREAU Jean" in p.inner_text(".bandeau")  # type: ignore[attr-defined]
+    premier = p.locator("ol.liste > li").first  # type: ignore[attr-defined]
+    assert "MOREAU JEAN" in premier.inner_text()
+    premier.locator("button[value=favori]").click()
+    p.wait_for_load_state()  # type: ignore[attr-defined]
+
+    # la notice est rangée sous la personne
+    p.click("text=Dossier : Famille Moreau")  # type: ignore[attr-defined]
+    p.wait_for_url(lambda url: "/dossiers/famille-moreau" in url)  # type: ignore[attr-defined]
+    texte = p.inner_text("main")  # type: ignore[attr-defined]
+    assert "notice de l'atelier" in texte
+    assert "Notices non rattachées" not in texte
+
+    # acte trouvé sur Filae, saisi à la main et rattaché à la personne
+    p.click("#ajout-notice summary")  # type: ignore[attr-defined]
+    p.select_option("#ajout-notice select[name=personne]", label="MOREAU Jean")  # type: ignore[attr-defined]
+    p.select_option("#ajout-notice select[name=type]", "naissance")  # type: ignore[attr-defined]
+    p.fill("#ajout-notice input[name=date]", "1925")  # type: ignore[attr-defined]
+    p.fill("#ajout-notice input[name=personnes]", "MOREAU Jean, fils de Louis")  # type: ignore[attr-defined]
+    p.fill("#ajout-notice input[name=site]", "Filae")  # type: ignore[attr-defined]
+    p.click("#ajout-notice button")  # type: ignore[attr-defined]
+    p.wait_for_load_state()  # type: ignore[attr-defined]
+    texte = p.inner_text("#p-1")  # type: ignore[attr-defined]
+    assert "repérée sur Filae" in texte
+    assert "MOREAU Jean, fils de Louis, naissance 1925. index Filae." in texte
+
+    # fin de mission : suppression complète, confirmée par l'identifiant
+    p.fill("input[name=confirmation]", "famille-moreau")  # type: ignore[attr-defined]
+    p.click("text=Supprimer définitivement")  # type: ignore[attr-defined]
+    p.wait_for_url(lambda url: url.endswith("/dossiers"))  # type: ignore[attr-defined]
+    assert "Famille Moreau" not in p.inner_text("main")  # type: ignore[attr-defined]
+    assert "Dossier : Personnel" in p.inner_text("header")  # type: ignore[attr-defined]

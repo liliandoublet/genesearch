@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block titre %}Dossiers de recherche{% endblock %}
+{% block contenu %}
+<h1>Dossiers de recherche</h1>
+<p class="chapeau">Un dossier par client ou par famille. Le dossier actif reçoit les notices
+  que vous marquez ★, ✓ ou ✗ ; chaque dossier est un fichier à part, que l'on peut exporter ou
+  supprimer sans toucher aux autres.</p>
+<ul class="liste">
+  {% for infos, personnes, notices in dossiers %}
+  {% set actif = infos.identifiant == dossier_actif.identifiant %}
+  <li class="notice {{ 'mise-en-avant' if actif }}">
+    <div class="corps">
+      <a class="nom" href="/dossiers/{{ infos.identifiant }}">{{ infos.nom }}</a>
+      {% if actif %}<span class="canal oui">dossier actif</span>{% endif %}
+      {% if infos.clos_le %}<span class="canal">clos le {{ infos.clos_le | date_fr }}</span>{% endif %}
+      <p class="meta">{% if infos.client %}{{ infos.client }} · {% endif %}{{ personnes }} personne{{ 's' if personnes > 1 }} recherchée{{ 's' if personnes > 1 }} · {{ notices }} notice{{ 's' if notices > 1 }}{% if infos.ouvert_le %} · ouvert le {{ infos.ouvert_le | date_fr }}{% endif %}</p>
+      {% if infos.description %}<p>{{ infos.description }}</p>{% endif %}
+    </div>
+    {% if not actif %}
+    <form method="post" action="/dossiers/{{ infos.identifiant }}/activer" class="actions">
+      <input type="hidden" name="retour" value="/dossiers">
+      <button>Activer</button>
+    </form>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+
+<h2 id="nouveau">Nouveau dossier</h2>
+{% if erreur %}<p class="erreur" role="alert">{{ erreur }}</p>{% endif %}
+<form method="post" action="/dossiers" class="recherche">
+  <div class="grille">
+    <label>Nom du dossier <input name="nom" required value="{{ saisie.nom or '' }}" placeholder="Famille Le Goff"></label>
+    <label>Client ou famille <input name="client" value="{{ saisie.client or '' }}" placeholder="M. et Mme Martin"></label>
+    <label>Description <input name="description" value="{{ saisie.description or '' }}" placeholder="branche maternelle, Finistère"></label>
+  </div>
+  <p><button>Créer et activer</button></p>
+</form>
+{% endblock %}

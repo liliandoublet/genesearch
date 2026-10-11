@@ -4,7 +4,9 @@ Exemples ::
 
     doudoumil pipeline --telecharge        # tout mettre à jour, téléchargements compris
     doudoumil pipeline                     # refaire seulement ce qui a changé
-    doudoumil sauvegarde                   # trouvailles et relevés → data/sauvegardes/
+    doudoumil dossier cree "Famille Le Goff" --client "M. Martin"  # puis l'activer
+    doudoumil dossier liste                # dossiers de recherche ; * = dossier actif
+    doudoumil sauvegarde                   # dossiers et relevés → data/sauvegardes/
     doudoumil restaure data/sauvegardes/doudoumil-20261010-120000.zip
     doudoumil telecharge insee --annees 2019-2020
     doudoumil telecharge communes          # référentiel des communes
@@ -27,10 +29,11 @@ import logging
 import sys
 import zipfile
 from collections.abc import Sequence
+from datetime import date, datetime
 from pathlib import Path
 
+from doudoumil_search import dossiers as dossiers_de_recherche
 from doudoumil_search import sauvegarde
-from doudoumil_search.api.trouvailles import Carnet
 from doudoumil_search.config import (
     dossier_bronze,
     dossier_communes,
@@ -193,10 +196,10 @@ def commande_calibre(args: argparse.Namespace) -> int:
         return 1
     mesures = evaluation.evaluer_requetes(chemin, args.cas, args.taux, args.graine)
     # verdicts donnés dans l'interface web : des exemples réels, ajoutés aux synthétiques
-    carnet = Carnet(dossier_perso(args.donnees) / "trouvailles.sqlite")
+    registre = dossiers_de_recherche.Registre(dossier_perso(args.donnees))
     verdicts = [
         (t.requete, t.mention_id, t.verdict == "oui")
-        for t in carnet.verdicts()
+        for t in registre.verdicts()
         if t.requete is not None
     ]
     with Moteur(chemin) as moteur:
@@ -323,6 +326,87 @@ def commande_restaure(args: argparse.Namespace) -> int:
     return 0
 
 
+def commande_dossier(args: argparse.Namespace) -> int:
+    registre = dossiers_de_recherche.Registre(dossier_perso(args.donnees))
+    try:
+        if args.action == "liste":
+            return _lister_dossiers(registre)
+        if args.action == "cree":
+            dossier = registre.creer(args.nom, client=args.client, description=args.description)
+            registre.activer(dossier.identifiant)
+            print(f"dossier « {dossier.infos().nom} » créé et activé ({dossier.identifiant})")
+            return 0
+        if args.action == "importe":
+            dossier = registre.importer(args.fichier)
+            print(f"dossier « {dossier.infos().nom} » importé ({dossier.identifiant})")
+            return 0
+        identifiant = dossiers_de_recherche.identifiant_de(args.nom)
+        if args.action == "active":
+            registre.activer(identifiant)
+            print(f"dossier actif : {identifiant}")
+            return 0
+        if args.action == "exporte":
+            return _exporter_dossier(
+                registre, identifiant, args.vers or args.donnees / "exports", args.donnees
+            )
+        return _supprimer_dossier(registre, identifiant, args.oui)
+    except (LookupError, ValueError, OSError) as erreur:
+        journal.error("%s", erreur)
+        return 1
+
+
+def _lister_dossiers(registre: dossiers_de_recherche.Registre) -> int:
+    actif = registre.actif().identifiant
+    for infos in registre.dossiers():
+        dossier = registre.ouvrir(infos.identifiant)
+        personnes = len(dossier.personnes())
+        notices = len(dossier.toutes()) + len(dossier.notices())
+        client = f" ({infos.client})" if infos.client else ""
+        clos = f", clos le {infos.clos_le[:10]}" if infos.clos_le else ""
+        print(
+            f"{'*' if infos.identifiant == actif else ' '} {infos.identifiant} — {infos.nom}"
+            f"{client} : {personnes} personne{'s' * (personnes > 1)}, "
+            f"{notices} notice{'s' * (notices > 1)}{clos}"
+        )
+    return 0
+
+
+def _exporter_dossier(
+    registre: dossiers_de_recherche.Registre, identifiant: str, vers: Path, racine: Path
+) -> int:
+    dossier = registre.ouvrir(identifiant)
+    destination = vers / f"{identifiant}-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+    citations: dict[str, str] = {}
+    chemin_base = gold.chemin_base(dossier_gold(racine))
+    if chemin_base.exists():
+        with Moteur(chemin_base) as moteur:
+            citations = dossiers_de_recherche.citations_atelier(moteur, dossier, date.today())
+    copie = registre.exporter(identifiant, destination)
+    tableau = dossiers_de_recherche.ecrire_export(
+        dossier, destination / f"{identifiant}.csv", citations
+    )
+    print(f"tableau : {tableau}")
+    print(f"dossier complet, à réimporter avec « doudoumil dossier importe » : {copie}")
+    return 0
+
+
+def _supprimer_dossier(
+    registre: dossiers_de_recherche.Registre, identifiant: str, confirme: bool
+) -> int:
+    nom = registre.ouvrir(identifiant).infos().nom
+    if not confirme:
+        reponse = input(
+            f"Supprimer définitivement « {nom} » et toutes ses données ? "
+            f"Tapez « {identifiant} » pour confirmer : "
+        )
+        if reponse.strip() != identifiant:
+            print("suppression abandonnée")
+            return 1
+    registre.supprimer(identifiant)
+    print(f"dossier « {nom} » supprimé")
+    return 0
+
+
 def construire_analyseur() -> argparse.ArgumentParser:
     analyseur = argparse.ArgumentParser(
         prog="doudoumil", description="Moteur de recherche généalogique personnel."
@@ -424,7 +508,26 @@ def construire_analyseur() -> argparse.ArgumentParser:
     )
     pipeline.set_defaults(fonction=commande_pipeline)
 
-    sauve = commandes.add_parser("sauvegarde", help="sauvegarder trouvailles et relevés")
+    dossier = commandes.add_parser("dossier", help="dossiers de recherche (un par client)")
+    actions = dossier.add_subparsers(dest="action", required=True)
+    actions.add_parser("liste", help="lister les dossiers ; * = dossier actif")
+    cree = actions.add_parser("cree", help="créer un dossier et l'activer")
+    cree.add_argument("nom", help="ex. « Famille Le Goff »")
+    cree.add_argument("--client", default="", help="client ou famille")
+    cree.add_argument("--description", default="")
+    active = actions.add_parser("active", help="choisir le dossier où ranger les trouvailles")
+    active.add_argument("nom")
+    exporte = actions.add_parser("exporte", help="tableau CSV et copie complète du dossier")
+    exporte.add_argument("nom")
+    exporte.add_argument("--vers", type=Path, default=None, help="défaut : data/exports")
+    importe = actions.add_parser("importe", help="ajouter un dossier exporté (.sqlite)")
+    importe.add_argument("fichier", type=Path)
+    supprime = actions.add_parser("supprime", help="supprimer définitivement un dossier")
+    supprime.add_argument("nom")
+    supprime.add_argument("--oui", action="store_true", help="ne pas demander de confirmation")
+    dossier.set_defaults(fonction=commande_dossier)
+
+    sauve = commandes.add_parser("sauvegarde", help="sauvegarder dossiers et relevés")
     sauve.add_argument(
         "--vers", type=Path, default=None, help="dossier de destination (défaut : data/sauvegardes)"
     )

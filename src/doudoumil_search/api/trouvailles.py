@@ -1,9 +1,11 @@
-"""« Mes trouvailles » : favoris, notes et verdicts, dans une base personnelle séparée.
+"""Trouvailles : favoris, notes et verdicts sur les notices de l'atelier.
 
-La base SQLite ``data/perso/trouvailles.sqlite`` n'est jamais reconstruite : les identifiants
-des notices étant déterministes, une trouvaille reste valable après un ``doudoumil index``.
-Chaque trouvaille garde la requête qui l'a fait apparaître ; un verdict (« c'est bien lui »
-ou « ce n'est pas lui ») devient alors un exemple réel pour la calibration (règle R5).
+Le carnet vit dans le fichier SQLite d'un dossier de recherche (``doudoumil_search.dossiers``),
+jamais reconstruit : les identifiants des notices étant déterministes, une trouvaille reste
+valable après un ``doudoumil index``. Chaque trouvaille garde la requête qui l'a fait
+apparaître ; un verdict (« c'est bien lui » ou « ce n'est pas lui ») devient alors un exemple
+réel pour la calibration (règle R5). Elle peut être rattachée à une personne recherchée du
+dossier.
 """
 
 import json
@@ -30,7 +32,8 @@ CREATE TABLE IF NOT EXISTS trouvailles (
     verdict TEXT CHECK (verdict IN ('oui', 'non')),
     requete TEXT,
     cree_le TEXT NOT NULL,
-    modifie_le TEXT NOT NULL
+    modifie_le TEXT NOT NULL,
+    personne_id INTEGER
 )
 """
 
@@ -47,6 +50,7 @@ class Trouvaille:
     requete: Requete | None
     cree_le: str
     modifie_le: str
+    personne_id: int | None = None
 
 
 class Carnet:
@@ -57,6 +61,9 @@ class Carnet:
         chemin.parent.mkdir(parents=True, exist_ok=True)
         with self._connexion() as connexion:
             connexion.execute(_SCHEMA)
+            colonnes = {c["name"] for c in connexion.execute("PRAGMA table_info(trouvailles)")}
+            if "personne_id" not in colonnes:  # carnet créé avant les dossiers de recherche
+                connexion.execute("ALTER TABLE trouvailles ADD COLUMN personne_id INTEGER")
 
     @contextmanager
     def _connexion(self) -> Iterator[sqlite3.Connection]:
@@ -79,6 +86,7 @@ class Carnet:
         note: str | None = None,
         verdict: str | None = None,
         effacer_verdict: bool = False,
+        personne_id: int | None = None,
     ) -> Trouvaille:
         """Crée ou met à jour une trouvaille ; seuls les champs donnés changent."""
         if verdict is not None and verdict not in VERDICTS:
@@ -107,6 +115,8 @@ class Carnet:
                 changements["favori"] = int(favori)
             if note is not None:
                 changements["note"] = note
+            if personne_id is not None:
+                changements["personne_id"] = personne_id
             if verdict is not None or effacer_verdict:
                 changements["verdict"] = verdict
                 if requete is not None:  # le verdict porte sur la requête qui l'a fait voir
@@ -119,6 +129,14 @@ class Carnet:
         trouvaille = self.lire(mention_id)
         assert trouvaille is not None
         return trouvaille
+
+    def rattacher(self, mention_id: str, personne_id: int | None) -> None:
+        """Rattache une trouvaille à une personne recherchée (``None`` : la détache)."""
+        with self._connexion() as connexion:
+            connexion.execute(
+                "UPDATE trouvailles SET personne_id = ? WHERE mention_id = ?",
+                (personne_id, mention_id),
+            )
 
     def supprimer(self, mention_id: str) -> None:
         with self._connexion() as connexion:
@@ -167,4 +185,5 @@ def _trouvaille(ligne: sqlite3.Row) -> Trouvaille:
         requete=requete,
         cree_le=ligne["cree_le"],
         modifie_le=ligne["modifie_le"],
+        personne_id=ligne["personne_id"],
     )

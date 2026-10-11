@@ -173,10 +173,15 @@ serveur. Essaie, et coche ce qui marche :
 - [ ] **Fiche** : un clic sur un nom ouvre l'acte, avec la provenance et une citation. Le
       bouton « Copier la citation » la place dans le presse-papiers.
 - [ ] **Trouvailles** : ★ favori, ✓ / ✗ verdict, note sur la fiche ; tout se retrouve dans
-      « Mes trouvailles ».
-- [ ] **Exports** : le CSV des résultats et celui des trouvailles s'ouvrent dans Excel ou
-      LibreOffice avec les accents corrects.
-- [ ] **Sauvegarde** : le lien « télécharger une sauvegarde » de « Mes trouvailles » donne un
+      le dossier actif (lien « Dossier : … » en haut de page).
+- [ ] **Dossiers** : dans « Tous les dossiers », crée un dossier d'essai ; ajoute une personne
+      recherchée ; « Chercher » lance la recherche, et une notice marquée ★ apparaît sous
+      cette personne dans le dossier. Saisis un acte trouvé sur Filae (« Saisir un acte
+      trouvé ailleurs ») : sa citation reprend la cote et la vue. Supprime ensuite le dossier
+      d'essai.
+- [ ] **Exports** : le CSV des résultats et celui d'un dossier (« exporter en tableur »)
+      s'ouvrent dans Excel ou LibreOffice avec les accents corrects.
+- [ ] **Sauvegarde** : le lien « télécharger une sauvegarde » de la page d'un dossier donne un
       fichier `doudoumil-….zip`.
 - [ ] **Rapidité** : note toute page qui met plus d'une seconde.
 - [ ] **Ergonomie** : note ce qui est peu clair, ce qui manque par rapport à Filae, ce qui est
@@ -282,8 +287,8 @@ uv run doudoumil sauvegarde
       uv run doudoumil --donnees essai-restauration restaure data/sauvegardes/doudoumil-AAAAMMJJ-HHMMSS.zip
       ```
 
-      Le dossier `essai-restauration` contient alors `perso/trouvailles.sqlite` et
-      `releves/`. Supprime-le ensuite.
+      Le dossier `essai-restauration` contient alors `perso/dossiers/` (un fichier par
+      dossier de recherche) et `releves/`. Supprime-le ensuite.
 - [ ] Copie une sauvegarde hors de l'ordinateur (clé USB, disque externe, nuage).
 
 ---

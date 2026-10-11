@@ -54,6 +54,9 @@ class Formulaire:
     filtre_source: str = ""
     filtre_departement: str = ""
     filtre_decennie: str = ""
+    # personne recherchée d'un dossier (« dossier:numéro ») : pas un critère de recherche, elle
+    # indique où ranger les notices retenues depuis ces résultats
+    personne: str = ""
     page: int = 1
     avance: bool = field(default=False)
 

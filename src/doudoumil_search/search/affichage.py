@@ -1,5 +1,6 @@
 """Mise en forme des notices, pour la ligne de commande et l'interface web."""
 
+import re
 from collections.abc import Callable
 from datetime import date
 from typing import Any
@@ -105,6 +106,31 @@ def citation(fiche: dict[str, Any], consulte_le: date) -> str:
         morceaux.append(fiche["url_image"])
     phrase = f"{identite(fiche)}, {evenement(fiche)}. {', '.join(morceaux)}."
     return f"{phrase} Consulté le {_date(consulte_le)}."
+
+
+DATE_COMPLETE = re.compile(r"\d{1,2}/\d{1,2}/\d{4}")
+
+
+def citation_saisie(notice: Any, consulte_le: date) -> str:
+    """Citation d'un acte saisi à la main (``dossiers.NoticeSaisie``).
+
+    On cite l'acte original aux archives (dépôt, cote, vue) ; à défaut seulement, le site où il
+    a été repéré.
+    """
+    nature = EVENEMENTS.get(notice.type, "acte")
+    quand = f"le {notice.date}" if DATE_COMPLETE.fullmatch(notice.date) else notice.date
+    phrase = f"{notice.personnes or '?'}, {nature} {quand}".rstrip()
+    if notice.lieu:
+        phrase += f" à {notice.lieu}"
+    morceaux = [notice.depot, notice.cote]
+    if notice.vue:
+        morceaux.append(f"vue {notice.vue}")
+    if not (notice.depot or notice.cote) and notice.site:
+        morceaux.append(f"index {notice.site}")
+    if notice.lien:
+        morceaux.append(notice.lien)
+    source = ", ".join(m for m in morceaux if m)
+    return f"{phrase}." + (f" {source}." if source else "") + f" Consulté le {_date(consulte_le)}."
 
 
 def formater(rang: int, resultat: Resultat, details: bool = False) -> str:

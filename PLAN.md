@@ -115,7 +115,7 @@ résultats sont consignés dans le tableau du §2 et dans CLAUDE.md.
 (jalon 8, partie relevés), commande unique et sauvegarde (jalon 10, en partie).
 
 **Suite, depuis la réorientation** :
-1. **Dossiers de recherche** (jalon 11) : le cœur de l'atelier ; les trouvailles actuelles
+1. **Dossiers de recherche** (jalon 11) ✅ : le cœur de l'atelier ; les trouvailles actuelles
    deviennent un premier dossier.
 2. **Vérification en lot** (jalon 12) : une liste ou un arbre contre les décès INSEE ; reprend
    la lecture GEDCOM de l'ancien jalon 9.
@@ -655,35 +655,50 @@ candidats pour chacun. Ton arbre lui-même reste géré par ton code.
 
 ---
 
-## Jalon 11 — Dossiers de recherche
+## Jalon 11 — Dossiers de recherche ✅
 
 **Objectif** : un classeur par client ou par famille, au cœur de l'atelier. Tout ce que tu
 trouves, ici ou sur Filae, y est rangé avec sa source.
 
-- [ ] **Dossier** : nom, client ou famille, description, dates d'ouverture et de clôture ;
-  dossier actif choisi dans l'interface et dans la CLI
-- [ ] Reprise sans perte des trouvailles existantes dans un premier dossier « Personnel »
-- [ ] **Personnes recherchées** : pour chaque dossier, la liste des personnes visées, avec ce
-  que l'on sait d'elles (nom, prénoms, naissance, lieux, conjoint) ; une recherche se lance
-  d'un clic depuis une personne
-- [ ] **Notices retenues** : favoris, notes et verdicts rangés dans le dossier actif et
-  rattachés à une personne recherchée
-- [ ] **Notice saisie à la main** : un acte trouvé sur Filae ou ailleurs (type, date, lieu,
-  personnes, archives, cote, vue, lien, site où il a été trouvé), avec la même citation que les
-  notices de l'atelier
-- [ ] Page d'un dossier : personnes, notices, notes, citations ; export en tableur
-- [ ] **Suppression complète** d'un dossier, avec confirmation (fin de mission, données d'un
-  client) ; sauvegarde par dossier
-- [ ] CLI : `doudoumil dossier liste|cree|active|exporte|supprime`
-- [ ] Tests, dont la reprise des trouvailles existantes et la suppression complète
+- [x] **Dossier** : nom, client ou famille, description, dates d'ouverture et de clôture ;
+  dossier actif choisi dans l'interface et dans la CLI (`dossiers.py`)
+- [x] Reprise sans perte des trouvailles existantes dans un premier dossier « Personnel »
+- [x] **Personnes recherchées** : pour chaque dossier, la liste des personnes visées, avec ce
+  que l'on sait d'elles (nom, prénoms, sexe, naissance, lieu, conjoint, note) ; « Chercher »
+  lance la recherche pré-remplie
+- [x] **Notices retenues** : favoris, notes et verdicts rangés dans le dossier de la personne
+  recherchée (sinon dans le dossier actif) et rattachés à elle ; rattachement modifiable
+- [x] **Notice saisie à la main** : un acte trouvé sur Filae ou ailleurs (type, date, lieu,
+  personnes, archives, cote, vue, lien, site où il a été repéré), avec sa citation
+- [x] Page d'un dossier : personnes, notices groupées par personne, notes, citations ; export
+  en tableur
+- [x] **Suppression complète** d'un dossier, confirmée en tapant son identifiant ; sauvegarde
+  d'un dossier par `doudoumil dossier exporte` (tableau CSV + copie réimportable par
+  `doudoumil dossier importe`)
+- [x] CLI : `doudoumil dossier liste|cree|active|exporte|importe|supprime`
+- [x] Tests : module, CLI, pages web, parcours navigateur (créer, chercher, retenir, saisir,
+  supprimer)
 
-**Décisions**
-- Une base SQLite par dossier (`data/perso/dossiers/<nom>.sqlite` : suppression et
-  sauvegarde d'un client isolées) ou une base unique avec une table des dossiers.
-- Une notice peut-elle appartenir à plusieurs dossiers (familles qui se croisent) ?
+**Décisions tranchées**
+- **Un fichier SQLite par dossier** (`data/perso/dossiers/<identifiant>.sqlite`) : supprimer,
+  exporter ou sauvegarder un client ne touche jamais les autres. L'identifiant vient du nom
+  (« Famille Le Goff » → `famille-le-goff`) et ne change plus ; le nom affiché, si.
+- **Une notice dans plusieurs dossiers : par copie.** Supprimer un dossier n'affecte aucun
+  autre.
+- Une recherche lancée depuis une personne porte `personne=<dossier>:<numéro>` : les notices
+  retenues depuis ces résultats (et depuis les fiches ouvertes) vont à cette personne de ce
+  dossier, même si le dossier actif change entre-temps.
+- Le dossier actif est noté dans `data/perso/dossier-actif`, commun à l'interface et à la
+  CLI ; à défaut, « Personnel » (créé s'il n'existe aucun dossier).
+- Le carnet d'avant les dossiers (`data/perso/trouvailles.sqlite`) est déplacé dans
+  `dossiers/personnel.sqlite` à la première ouverture ; une ancienne sauvegarde restaurée plus
+  tard devient « Personnel (2) », sans rien écraser.
+- Une notice saisie cite l'acte original (archives, cote, vue) ; seulement à défaut, le site
+  où elle a été repérée (« index Filae »).
+- `doudoumil calibre` lit les verdicts de tous les dossiers ; l'ancienne page « Mes
+  trouvailles » (`/trouvailles`) mène au dossier actif.
 
-**Démo** : un dossier client, trois personnes recherchées, une notice de l'atelier et une
-notice saisie depuis Filae, export du dossier.
+**Démo** : voir le README, « Jalon 11 — dossiers de recherche » et `docs/captures/dossier.png`.
 
 ---
 

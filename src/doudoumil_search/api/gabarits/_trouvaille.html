@@ -5,6 +5,7 @@
   <input type="hidden" name="source" value="{{ r_source }}">
   <input type="hidden" name="requete" value="{{ requete_json }}">
   <input type="hidden" name="retour" value="{{ retour }}">
+  {% include "_cible.html" %}
   <button name="action" value="favori" class="icone {% if t and t.favori %}actif{% endif %}"
           aria-pressed="{{ 'true' if t and t.favori else 'false' }}"
           title="{{ 'Retirer des favoris' if t and t.favori else 'Ajouter aux favoris' }}">★</button>

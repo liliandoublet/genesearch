@@ -1,5 +1,6 @@
 {% set e = erreurs or {} %}
 <form class="recherche" action="/recherche" method="get" role="search">
+  {% if formulaire.personne %}<input type="hidden" name="personne" value="{{ formulaire.personne }}">{% endif %}
   <div class="ligne-principale">
     <label for="q" class="masque">Nom et prénoms</label>
     <input id="q" name="q" type="search" value="{{ formulaire.q }}"

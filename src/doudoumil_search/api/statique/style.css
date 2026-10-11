@@ -140,3 +140,29 @@ summary { cursor: pointer; color: var(--accent); }
 .note label { flex: 1; display: flex; flex-direction: column; font-size: 0.9rem; color: var(--discret); }
 .note button { background: transparent; color: var(--accent); }
 .note-longue { white-space: pre-wrap; }
+
+/* dossiers de recherche */
+h3 { font-size: 1.1rem; margin: 0; }
+.bandeau {
+  background: var(--pastille); border-left: 4px solid var(--accent); border-radius: 6px;
+  padding: 0.5rem 0.75rem; margin: 0.5rem 0 1rem;
+}
+.notice.mise-en-avant { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
+#personnes { margin-top: 1.75rem; font-size: 1.2rem; }
+.groupe { margin: 1rem 0; padding-top: 1rem; border-top: 1px solid var(--bord); }
+.groupe-entete { margin-bottom: 0.5rem; }
+.groupe-entete p { margin: 0.2rem 0; }
+.bouton {
+  display: inline-block; text-decoration: none; border-radius: 6px; padding: 0.35rem 0.9rem;
+  background: var(--accent); color: var(--accent-texte);
+}
+button.secondaire { background: transparent; color: var(--accent); }
+button.danger { background: var(--danger); border-color: var(--danger); color: var(--surface); }
+.en-ligne { display: inline; }
+.rattacher { display: flex; gap: 0.5rem; align-items: center; margin-top: 0.4rem; max-width: 30rem; }
+.rattacher select { flex: 1; min-width: 0; }
+.rattacher button { flex-shrink: 0; white-space: nowrap; }
+.zone-danger {
+  margin-top: 2.5rem; border: 1px solid var(--danger); border-radius: var(--rayon); padding: 1rem;
+}
+.zone-danger h2 { color: var(--danger); }

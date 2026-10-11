@@ -2,6 +2,7 @@
 {% block titre %}{{ evenement(acte) }}{% endblock %}
 {% block contenu %}
 {% if retour %}<p><a href="{{ retour }}">← retour aux résultats</a></p>{% endif %}
+{% if personne_cible %}<p class="bandeau">Notices retenues rangées pour <strong>{{ personne_cible.libelle }}</strong>, dossier « {{ dossier_courant.nom }} ».</p>{% endif %}
 <h1>{{ evenement(acte) | initiale }}</h1>
 <dl class="provenance">
   <dt>Source</dt><dd>{{ acte.titre_source or noms_sources.get(acte.source, acte.source) }}</dd>
@@ -31,6 +32,7 @@
         <input type="hidden" name="source" value="{{ acte.source }}">
         <input type="hidden" name="requete" value="{{ requete_json }}">
         <input type="hidden" name="retour" value="{{ ici }}">
+        {% include "_cible.html" %}
         <label>Note <textarea name="note" rows="2">{{ t.note if t else '' }}</textarea></label>
         <button name="action" value="note">Enregistrer la note</button>
       </form>

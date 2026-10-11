@@ -10,8 +10,8 @@ from fastapi.testclient import TestClient
 
 from doudoumil_search.api.application import creer_application
 from doudoumil_search.api.formulaire import Formulaire, FormulaireInvalide
-from doudoumil_search.api.trouvailles import Carnet
 from doudoumil_search.cli import main
+from doudoumil_search.dossiers import Registre
 from doudoumil_search.search.requete import Lieu, Requete
 from jeu_recherche import construire_racine
 
@@ -183,7 +183,8 @@ def _envoyer(client: TestClient, mention_id: str, action: str, **champs: str) ->
 def test_favori_note_verdict(client: TestClient, racine: Path) -> None:
     requete = json.dumps(Requete.creer(nom="LE GOFF").vers_dict())
     assert _envoyer(client, "m1", "favori", requete=requete) == 303
-    carnet = Carnet(racine / "perso" / "trouvailles.sqlite")
+    carnet = Registre(racine / "perso").actif()
+    assert carnet.identifiant == "personnel"
     assert carnet.lire("m1").favori  # type: ignore[union-attr]
     _envoyer(client, "m1", "note", note="vérifier l'acte de naissance")
     _envoyer(client, "m1", "oui", requete=requete)
@@ -265,9 +266,10 @@ def test_export_csv_des_resultats(client: TestClient) -> None:
 
 
 def test_export_csv_des_trouvailles(client: TestClient) -> None:
+    """Ancienne adresse : export du dossier actif."""
     _envoyer(client, "m1", "note", note="à voir")
     lignes = client.get("/trouvailles.csv").text.strip().splitlines()
-    assert lignes[0].startswith("﻿notice;favori;verdict;note")
+    assert lignes[0].startswith("﻿personne recherchée;nature;notice;citation")
     assert "à voir" in lignes[1]
 
 
@@ -348,5 +350,200 @@ def test_requete_transmise_mal_formee_ignoree(
     client: TestClient, racine: Path, requete: str
 ) -> None:
     assert _envoyer(client, "m1", "oui", requete=requete) == 303
-    trouvaille = Carnet(racine / "perso" / "trouvailles.sqlite").lire("m1")
+    trouvaille = Registre(racine / "perso").actif().lire("m1")
     assert trouvaille is not None and trouvaille.verdict == "oui" and trouvaille.requete is None
+
+
+# --- dossiers de recherche ------------------------------------------------------------------
+
+
+def _creer_dossier(client: TestClient, nom: str = "Famille Le Goff") -> str:
+    reponse = client.post(
+        "/dossiers", data={"nom": nom, "client": "M. Martin"}, follow_redirects=False
+    )
+    assert reponse.status_code == 303
+    return reponse.headers["location"].removeprefix("/dossiers/")
+
+
+def test_liste_et_creation_de_dossiers(client: TestClient) -> None:
+    assert "Personnel" in client.get("/dossiers").text
+    identifiant = _creer_dossier(client)
+    assert identifiant == "famille-le-goff"
+    page = client.get("/dossiers").text
+    assert "Famille Le Goff" in page and "M. Martin" in page
+    # le nouveau dossier devient le dossier actif, affiché dans l'en-tête
+    assert "Dossier : Famille Le Goff" in client.get("/").text
+    assert client.get("/trouvailles", follow_redirects=False).headers["location"] == (
+        "/dossiers/famille-le-goff"
+    )
+    reponse = client.post("/dossiers/personnel/activer", data={"retour": "/dossiers"})
+    assert "Dossier : Personnel" in reponse.text
+
+
+@pytest.mark.parametrize(
+    ("nom", "message"), [("", "au moins une lettre"), ("Personnel", "existe déjà")]
+)
+def test_creation_de_dossier_refusee(client: TestClient, nom: str, message: str) -> None:
+    client.get("/dossiers")  # crée « Personnel »
+    reponse = client.post("/dossiers", data={"nom": nom})
+    assert reponse.status_code == 422
+    assert message in reponse.text
+
+
+def test_recherche_depuis_une_personne_et_rattachement(client: TestClient, racine: Path) -> None:
+    client.get("/dossiers")  # crée « Personnel »
+    identifiant = _creer_dossier(client)
+    reponse = client.post(
+        f"/dossiers/{identifiant}/personnes",
+        data={"nom": "MOREAU", "prenoms": "Jean", "naissance": "1925", "sexe": "M"},
+        follow_redirects=False,
+    )
+    assert reponse.headers["location"] == f"/dossiers/{identifiant}#p-1"
+    page = client.get(f"/dossiers/{identifiant}").text
+    adresse = re.search(r'href="(/recherche\?[^"]+)"', page).group(1).replace("&amp;", "&")  # type: ignore[union-attr]
+    assert "personne=famille-le-goff%3A1" in adresse
+
+    # le dossier actif change entre-temps : la notice va quand même à la personne visée
+    client.post("/dossiers/personnel/activer")
+    resultats = client.get(adresse).text
+    assert "Recherche pour" in _texte(resultats) and "MOREAU Jean" in _texte(resultats)
+    assert '<input type="hidden" name="dossier" value="famille-le-goff">' in resultats
+    assert '<input type="hidden" name="personne" value="1">' in resultats
+    lien = _liens_fiches(resultats)[0]
+    assert "personne=famille-le-goff%3A1" in lien
+    mention = re.search(r"mention=([0-9a-f]{32})", lien).group(1)  # type: ignore[union-attr]
+    _envoyer(client, mention, "favori", dossier="famille-le-goff", personne="1")
+
+    registre = Registre(racine / "perso")
+    famille = registre.ouvrir("famille-le-goff")
+    assert [(t.mention_id, t.personne_id) for t in famille.toutes()] == [(mention, 1)]
+    assert registre.ouvrir("personnel").toutes() == []
+    # la fiche ouverte depuis ces résultats range aussi dans le bon dossier
+    fiche = client.get(lien).text
+    assert "Notices retenues rangées pour" in _texte(fiche)
+    # sur la page du dossier, la notice est sous la personne, pas parmi les non rattachées
+    page = _texte(client.get(f"/dossiers/{identifiant}").text)
+    assert "Notices non rattachées" not in page
+    assert "MOREAU JEAN" in page.split("MOREAU Jean", 1)[1].upper()
+
+
+def test_personne_inconnue_ignoree(client: TestClient, racine: Path) -> None:
+    _creer_dossier(client)
+    _envoyer(client, "m1", "favori", dossier="famille-le-goff", personne="42")
+    assert Registre(racine / "perso").ouvrir("famille-le-goff").lire("m1").personne_id is None  # type: ignore[union-attr]
+    assert (
+        "Recherche pour"
+        not in client.get("/recherche", params={"q": "MOREAU", "personne": "x:1"}).text
+    )
+
+
+def test_modifier_et_supprimer_une_personne(client: TestClient, racine: Path) -> None:
+    identifiant = _creer_dossier(client)
+    client.post(f"/dossiers/{identifiant}/personnes", data={"nom": "LE GOFF", "prenoms": "Marie"})
+    reponse = client.post(f"/dossiers/{identifiant}/personnes", data={"lieu": "Brest"})
+    assert reponse.status_code == 422 and "au moins un nom" in reponse.text
+    client.post(
+        f"/dossiers/{identifiant}/personnes/1",
+        data={"action": "modifier", "nom": "LE GOFF", "prenoms": "Marie", "conjoint": "MARTIN"},
+    )
+    dossier = Registre(racine / "perso").ouvrir(identifiant)
+    assert dossier.personne(1).conjoint == "MARTIN"  # type: ignore[union-attr]
+    reponse = client.post(
+        f"/dossiers/{identifiant}/personnes/1", data={"action": "modifier", "sexe": "X"}
+    )
+    assert reponse.status_code == 422
+    client.post(f"/dossiers/{identifiant}/personnes/1", data={"action": "supprimer"})
+    assert dossier.personnes() == []
+
+
+def test_notice_saisie_rattachement_et_export(client: TestClient, racine: Path) -> None:
+    identifiant = _creer_dossier(client)
+    client.post(f"/dossiers/{identifiant}/personnes", data={"nom": "LE GOFF", "prenoms": "Marie"})
+    reponse = client.post(
+        f"/dossiers/{identifiant}/notices",
+        data={
+            "type": "bapteme",
+            "date": "02/03/1755",
+            "lieu": "Plougastel-Daoulas (29)",
+            "personnes": "LE GOFF Marie",
+            "depot": "AD 29",
+            "cote": "3 E 158/2",
+            "vue": "12",
+            "site": "Filae",
+            "personne": "",
+        },
+        follow_redirects=False,
+    )
+    assert reponse.status_code == 303
+    dossier = Registre(racine / "perso").ouvrir(identifiant)
+    (notice,) = dossier.notices()
+    assert notice.personne_id is None
+    client.post(
+        f"/dossiers/{identifiant}/notices/{notice.notice_id}",
+        data={"action": "rattacher", "personne": "1"},
+    )
+    assert dossier.notice(notice.notice_id).personne_id == 1  # type: ignore[union-attr]
+    _envoyer(client, "m1", "note", note="à vérifier", dossier=identifiant)
+    client.post(f"/dossiers/{identifiant}/trouvailles/m1", data={"personne": "1"})
+    assert dossier.lire("m1").personne_id == 1  # type: ignore[union-attr]
+
+    page = _texte(client.get(f"/dossiers/{identifiant}").text)
+    assert (
+        "LE GOFF Marie, baptême le 02/03/1755 à Plougastel-Daoulas (29). AD 29, 3 E 158/2, vue 12."
+        in page
+    )
+    assert "repérée sur Filae" in page
+    tableau = client.get(f"/dossiers/{identifiant}.csv")
+    assert tableau.headers["content-disposition"] == 'attachment; filename="famille-le-goff.csv"'
+    assert "notice saisie" in tableau.text and "à vérifier" in tableau.text
+
+    assert (
+        client.post(f"/dossiers/{identifiant}/notices", data={"type": "deces"}).status_code == 422
+    )
+    assert (
+        client.post(
+            f"/dossiers/{identifiant}/notices/{notice.notice_id}", data={"action": "pirater"}
+        ).status_code
+        == 400
+    )
+    client.post(f"/dossiers/{identifiant}/notices/{notice.notice_id}", data={"action": "supprimer"})
+    assert dossier.notices() == []
+
+
+def test_clore_rouvrir_et_renommer(client: TestClient, racine: Path) -> None:
+    identifiant = _creer_dossier(client)
+    client.post(f"/dossiers/{identifiant}/infos", data={"action": "clore"})
+    dossier = Registre(racine / "perso").ouvrir(identifiant)
+    assert dossier.infos().clos_le
+    assert "clos le" in client.get("/dossiers").text
+    client.post(f"/dossiers/{identifiant}/infos", data={"action": "rouvrir"})
+    assert not dossier.infos().clos_le
+    client.post(
+        f"/dossiers/{identifiant}/infos", data={"nom": "Le Goff (Bretagne)", "client": "Mme Martin"}
+    )
+    assert dossier.infos().nom == "Le Goff (Bretagne)"
+    assert dossier.identifiant == identifiant  # le fichier garde son nom
+    assert client.post(f"/dossiers/{identifiant}/infos", data={"nom": " "}).status_code == 422
+
+
+def test_suppression_d_un_dossier(client: TestClient, racine: Path) -> None:
+    identifiant = _creer_dossier(client)
+    reponse = client.post(f"/dossiers/{identifiant}/supprimer", data={"confirmation": "oui"})
+    assert reponse.status_code == 422 and "pour confirmer" in reponse.text
+    assert Registre(racine / "perso").existe(identifiant)
+    reponse = client.post(
+        f"/dossiers/{identifiant}/supprimer",
+        data={"confirmation": identifiant},
+        follow_redirects=False,
+    )
+    assert reponse.headers["location"] == "/dossiers"
+    assert not Registre(racine / "perso").existe(identifiant)
+    assert "Dossier : Personnel" in client.get("/").text
+
+
+@pytest.mark.parametrize("adresse", ["/dossiers/inconnu", "/dossiers/..%2Fperso", "/dossiers/A-B"])
+def test_dossier_inconnu(client: TestClient, adresse: str) -> None:
+    assert client.get(adresse).status_code == 404
+    assert client.post(f"{adresse}/activer").status_code == 404
+    assert client.get(f"{adresse}.csv").status_code == 404
+    assert _envoyer(client, "m1", "favori", dossier=adresse.rsplit("/", 1)[-1]) == 404

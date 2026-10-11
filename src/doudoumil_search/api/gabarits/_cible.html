@@ -1,0 +1,3 @@
+{# Où ranger une trouvaille : dossier courant et, s'il y en a une, personne recherchée. #}
+{% if dossier_courant %}<input type="hidden" name="dossier" value="{{ dossier_courant.identifiant }}">{% endif %}
+{% if personne_cible %}<input type="hidden" name="personne" value="{{ personne_cible.personne_id }}">{% endif %}

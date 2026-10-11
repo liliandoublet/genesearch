@@ -53,6 +53,7 @@ src/doudoumil_search/
 ├── config.py     # dossiers data/ (ou $DOUDOUMIL_DATA) : bronze, silver, gold, ref, perso, releves
 ├── cli.py        # commande `doudoumil` (argparse)
 ├── pipeline.py   # `doudoumil pipeline` : bronze → silver → gold selon les dates (façon make)
+├── dossiers.py   # dossiers de recherche : un SQLite par dossier, personnes, notices, export
 ├── sauvegarde.py # archive zip de data/perso et data/releves, restauration vérifiée
 ├── ingest/       # sources → bronze                (jalons 2, 6, 8)
 │   ├── commun.py          # rejets, bilan d'ingestion, motifs de codes géographiques
@@ -79,7 +80,7 @@ src/doudoumil_search/
 ├── api/          # interface web locale            (jalons 5 et 7)
 │   ├── application.py     # FastAPI : pages, fiches, trouvailles, CSV, API JSON, sécurité
 │   ├── formulaire.py      # paramètres d'adresse → requête ; filtres et compteurs
-│   ├── trouvailles.py     # carnet SQLite data/perso/ (favori, note, verdict, requête)
+│   ├── trouvailles.py     # carnet de trouvailles (favori, note, verdict, requête, personne)
 │   ├── gabarits/          # pages Jinja2
 │   └── statique/          # style.css, doudoumil.js (autocomplétion, copie), icône
 └── linkage/      # rapprochement GEDCOM, optionnel (jalon 9)
@@ -92,19 +93,19 @@ src/doudoumil_search/
 - **Dernière mise à jour** : 2026-10-11
 - **Jalons terminés** : 0 (socle), 1 (modèle pivot), 2 (ingestion INSEE décès), 3
   (normalisation → silver), 4 (base gold et recherche), 5 (interface web locale), sous réserve
-  de la vérification sur de vrais fichiers INSEE.
+  de la vérification sur de vrais fichiers INSEE ; 11 (dossiers de recherche).
 - **Jalons en partie** : 8 (relevés faits ; Morts pour la France et registres matricules en
   sommeil) et 10 (`doudoumil pipeline`, sauvegarde et restauration faits ; restent la mise à
   jour vraiment incrémentale, le README complet, l'homogénéité des journaux).
-- **Suite, depuis la réorientation** (PLAN.md §4) : jalon 11 **dossiers de recherche** (le
-  prochain), 12 vérification en lot (liste ou GEDCOM contre les décès INSEE), 13 passerelles
+- **Suite, depuis la réorientation** (PLAN.md §4) : jalon 11 dossiers de recherche (fait),
+  12 **vérification en lot** (le prochain : liste ou GEDCOM contre les décès INSEE), 13 passerelles
   (liens pré-remplis vers Filae, Geneanet, FamilySearch, MatchID, FranceArchives ;
   localisateur de registres), 14 rendu pour le client. **En sommeil** : 6 (Socface), 7
   (visionneuse intégrée), 8 (Morts pour la France, registres matricules) ; 9 est repris par
   12.
-- **Prochaine action** : côté code, jalon 11 (dossiers de recherche), en tranchant d'abord
-  ses deux décisions (une base SQLite par dossier ou une base unique ; notice partagée entre
-  dossiers). Côté utilisateur : dérouler `docs/tests-manuels.md` (vrais fichiers INSEE,
+- **Prochaine action** : côté code, jalon 12 (vérification en lot : liste ou GEDCOM contre les
+  décès INSEE, les personnes importées devenant les personnes recherchées d'un dossier). Côté
+  utilisateur : dérouler `docs/tests-manuels.md` (vrais fichiers INSEE,
   performances sur ≈ 25 M de décès, personnes connues, vrai relevé, sauvegarde) et renvoyer
   sa « fiche de résultats » ; la demande d'export Socface n'est plus prioritaire.
 - **Accès réseau de l'environnement de développement** : data.gouv.fr et insee.fr sont
@@ -155,10 +156,16 @@ src/doudoumil_search/
     reste. Sauvegarde : zip de `data/perso/` + `data/releves/` avec manifeste, SQLite copiée par
     l'API de sauvegarde ; restauration vérifiée (manifeste, chemins), précédée d'une
     sauvegarde de l'état actuel.
+  - Dossiers (jalon 11, `dossiers.py`) : un SQLite par dossier dans `data/perso/dossiers/`
+    (identifiant tiré du nom, puis fixe) ; une notice dans plusieurs dossiers par copie ;
+    `personne=<dossier>:<numéro>` dans l'adresse d'une recherche range les notices retenues
+    chez cette personne quel que soit le dossier actif ; dossier actif dans
+    `data/perso/dossier-actif` (interface et CLI) ; ancien `trouvailles.sqlite` repris en
+    « Personnel » ; suppression confirmée par l'identifiant ; `calibre` lit tous les dossiers.
   - Interface web : Jinja2 rendu serveur sans framework JS, recherches dans l'adresse (GET),
-    `127.0.0.1` seulement, hôtes et origines vérifiés ; trouvailles dans
-    `data/perso/trouvailles.sqlite`, à sauvegarder (jamais reconstruites) ; leurs verdicts
-    complètent la calibration. Tests navigateur : Playwright + Chromium (`navigateur`).
+    `127.0.0.1` seulement, hôtes et origines vérifiés ; trouvailles rangées dans les dossiers
+    de recherche, à sauvegarder (jamais reconstruits) ; leurs verdicts complètent la
+    calibration. Tests navigateur : Playwright + Chromium (`navigateur`).
   - CLI `doudoumil` en `argparse` ; pools de processus en démarrage *spawn* (un *fork* après
     la création de fils d'exécution a bloqué les tests).
   - Conception de la recherche fixée dans PLAN.md, règles R1 à R5 :
@@ -167,8 +174,7 @@ src/doudoumil_search/
     - R3 : naissances en intervalles d'années, avec une tolérance par source ;
     - R4 : prénoms comparés sans tenir compte de l'ordre, avec une table d'équivalences ;
     - R5 : score pondéré, puis calibré en probabilité par source.
-- **Points ouverts** : voir les blocs « Décisions » de PLAN.md, en particulier ceux du
-  jalon 11 ; format des adresses de recherche des sites et conditions d'utilisation de ces
+- **Points ouverts** : voir les blocs « Décisions » de PLAN.md ; format des adresses de recherche des sites et conditions d'utilisation de ces
   liens (préalable P, pour le jalon 13).
 - **Manque assumé** : pas d'index national ouvert des naissances et mariages d'avant 1970 ;
   c'est le rôle de Filae et des autres sites, que l'atelier complète (dossiers, passerelles,
@@ -178,6 +184,14 @@ src/doudoumil_search/
 ## Journal des sessions
 
 Une ligne par session de travail, la plus récente en haut.
+
+- 2026-10-11 — Jalon 11 : dossiers de recherche (`dossiers.py`), un fichier SQLite par
+  dossier ; personnes recherchées, recherche lancée depuis une personne (`personne=` dans
+  l'adresse), trouvailles rattachées, notices saisies à la main avec citation, export CSV et
+  copie réimportable, suppression confirmée ; pages `/dossiers` et `/dossiers/<id>`, dossier
+  actif dans l'en-tête ; CLI `doudoumil dossier` ; reprise de l'ancien carnet en
+  « Personnel » ; calibration sur tous les dossiers ; tests (module, CLI, web, navigateur) et
+  captures.
 
 - 2026-10-11 — **Réorientation** : le projet devient un atelier complémentaire de Filae
   (décision de l'utilisateur). PLAN.md réécrit (but, périmètre, précautions pour une activité

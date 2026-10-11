@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block titre %}{{ dossier.nom }}{% endblock %}
+{% block contenu %}
+{% set actif = dossier.identifiant == dossier_actif.identifiant %}
+<p><a href="/dossiers">← tous les dossiers</a></p>
+<h1>{{ dossier.nom }}
+  {% if actif %}<span class="canal oui">dossier actif</span>{% endif %}
+  {% if dossier.clos_le %}<span class="canal">clos le {{ dossier.clos_le | date_fr }}</span>{% endif %}</h1>
+<p class="chapeau">{% if dossier.client %}{{ dossier.client }} · {% endif %}{% if dossier.ouvert_le %}ouvert le {{ dossier.ouvert_le | date_fr }}{% endif %}
+  {% if dossier.description %}<br>{{ dossier.description }}{% endif %}</p>
+<p class="resume">{{ personnes | length }} personne{{ 's' if personnes | length > 1 }} recherchée{{ 's' if personnes | length > 1 }} ·
+  {{ nombre_notices }} notice{{ 's' if nombre_notices > 1 }} ·
+  <a href="/dossiers/{{ dossier.identifiant }}.csv">exporter en tableur</a> ·
+  <a href="/sauvegarde.zip" title="Tous les dossiers et les relevés, à restaurer avec « doudoumil restaure »">télécharger une sauvegarde</a>
+  {% if not actif %}·
+  <form method="post" action="/dossiers/{{ dossier.identifiant }}/activer" class="en-ligne">
+    <button>Activer ce dossier</button>
+  </form>{% endif %}</p>
+
+<details {% if erreurs.infos %}open{% endif %}>
+  <summary>Modifier le dossier</summary>
+  {% if erreurs.infos %}<p class="erreur" role="alert">{{ erreurs.infos }}</p>{% endif %}
+  <form method="post" action="/dossiers/{{ dossier.identifiant }}/infos">
+    <div class="grille">
+      <label>Nom <input name="nom" value="{{ dossier.nom }}" required></label>
+      <label>Client ou famille <input name="client" value="{{ dossier.client }}"></label>
+      <label>Description <input name="description" value="{{ dossier.description }}"></label>
+    </div>
+    <p><button name="action" value="enregistrer">Enregistrer</button>
+      {% if dossier.clos_le %}<button name="action" value="rouvrir" class="secondaire">Rouvrir le dossier</button>
+      {% else %}<button name="action" value="clore" class="secondaire">Clore le dossier</button>{% endif %}</p>
+  </form>
+</details>
+
+{# --- personnes recherchées -------------------------------------------------------------- #}
+<h2 id="personnes">Personnes recherchées</h2>
+{% macro champs_personne(p) %}
+<div class="grille">
+  <label>Nom <input name="nom" value="{{ p.nom if p else '' }}" placeholder="LE GOFF"></label>
+  <label>Prénoms <input name="prenoms" value="{{ p.prenoms if p else '' }}" placeholder="Marie Josèphe"></label>
+  <label>Sexe
+    <select name="sexe">
+      <option value="">inconnu</option>
+      <option value="F" {% if p and p.sexe == 'F' %}selected{% endif %}>femme</option>
+      <option value="M" {% if p and p.sexe == 'M' %}selected{% endif %}>homme</option>
+    </select>
+  </label>
+  <label>Naissance <input name="naissance" value="{{ p.naissance if p else '' }}" placeholder="1931 ou 1930-1932" inputmode="numeric"></label>
+  <label>Lieu <input name="lieu" value="{{ p.lieu if p else '' }}" placeholder="commune, code INSEE ou département"></label>
+  <label>Conjoint <input name="conjoint" value="{{ p.conjoint if p else '' }}" placeholder="nom du mari pour une femme mariée"></label>
+  <label>Note <input name="note" value="{{ p.note if p else '' }}"></label>
+</div>
+{% endmacro %}
+
+{% macro choix_personne(selection) %}
+<select name="personne" aria-label="Personne recherchée">
+  <option value="">— aucune —</option>
+  {% for p in personnes %}
+  <option value="{{ p.personne_id }}" {% if selection == p.personne_id %}selected{% endif %}>{{ p.libelle }}</option>
+  {% endfor %}
+</select>
+{% endmacro %}
+
+{% if not personnes %}
+<p class="chapeau">Aucune personne recherchée pour l'instant. Ajoutez-en une ci-dessous : un clic
+  sur « Chercher » lancera la recherche, et les notices retenues lui seront rattachées.</p>
+{% endif %}
+
+<section id="notices">
+{% for personne, trouvailles, saisies in groupes %}
+{% if personne or trouvailles or saisies %}
+<article class="groupe" {% if personne %}id="p-{{ personne.personne_id }}"{% endif %}>
+  {% if personne %}
+  <header class="groupe-entete">
+    <h3>{{ personne.libelle }}{% if personne.sexe %} <span class="sexe">({{ personne.sexe }})</span>{% endif %}</h3>
+    <p class="meta">{% if personne.naissance %}né{{ 'e' if personne.sexe == 'F' }} {{ personne.naissance }}{% endif %}{% if personne.lieu %} · {{ personne.lieu }}{% endif %}{% if personne.conjoint %} · conjoint : {{ personne.conjoint }}{% endif %}{% if personne.note %} · {{ personne.note }}{% endif %}</p>
+    <p><a class="bouton" href="{{ adresse_recherche(personne) }}">Chercher</a></p>
+    {% set cle = 'p-' ~ personne.personne_id %}
+    <details {% if erreurs[cle] %}open{% endif %}>
+      <summary>Modifier ou supprimer</summary>
+      {% if erreurs[cle] %}<p class="erreur" role="alert">{{ erreurs[cle] }}</p>{% endif %}
+      <form method="post" action="/dossiers/{{ dossier.identifiant }}/personnes/{{ personne.personne_id }}">
+        {{ champs_personne(personne) }}
+        <p><button name="action" value="modifier">Enregistrer</button>
+          <button name="action" value="supprimer" class="secondaire" title="Ses notices restent dans le dossier">Supprimer la personne</button></p>
+      </form>
+    </details>
+  </header>
+  {% else %}
+  <header class="groupe-entete"><h3>Notices non rattachées</h3></header>
+  {% endif %}
+
+  {% if not trouvailles and not saisies %}<p class="meta">Aucune notice pour l'instant.</p>{% endif %}
+  <ul class="liste">
+    {% for t in trouvailles %}
+    <li class="notice">
+      <div class="corps">
+        <a class="nom" href="/actes/{{ t.acte_id }}?mention={{ t.mention_id }}">{{ t.libelle }}</a>
+        <p class="meta">notice de l'atelier · {{ noms_sources.get(t.source, t.source or '') }} · modifiée le {{ t.modifie_le | date_fr }}
+          {% if t.favori %}<span class="canal">favori</span>{% endif %}
+          {% if t.verdict == 'oui' %}<span class="canal oui">c'est bien lui / elle</span>{% elif t.verdict == 'non' %}<span class="canal non">ce n'est pas lui / elle</span>{% endif %}</p>
+        {% if t.note %}<p class="note-longue">{{ t.note }}</p>{% endif %}
+        {% if citations.get(t.mention_id) %}<p class="citation"><code>{{ citations[t.mention_id] }}</code></p>{% endif %}
+        <form method="post" action="/dossiers/{{ dossier.identifiant }}/trouvailles/{{ t.mention_id }}" class="rattacher">
+          {{ choix_personne(t.personne_id) }} <button class="secondaire">Rattacher</button>
+        </form>
+      </div>
+      <form method="post" action="/trouvailles/{{ t.mention_id }}" class="actions">
+        <input type="hidden" name="acte_id" value="{{ t.acte_id }}">
+        <input type="hidden" name="libelle" value="{{ t.libelle }}">
+        <input type="hidden" name="dossier" value="{{ dossier.identifiant }}">
+        <input type="hidden" name="retour" value="/dossiers/{{ dossier.identifiant }}#notices">
+        {% if t.verdict %}<button name="action" value="effacer" class="icone" title="Effacer le verdict">↺</button>{% endif %}
+        <button name="action" value="supprimer" class="icone" title="Retirer cette notice du dossier">🗑</button>
+      </form>
+    </li>
+    {% endfor %}
+    {% for n in saisies %}
+    <li class="notice">
+      <div class="corps">
+        <p class="nom">{{ n.personnes or '?' }}</p>
+        <p class="meta">notice saisie · {{ evenements.get(n.type, 'acte') }}{% if n.date %} {{ n.date }}{% endif %}{% if n.lieu %} à {{ n.lieu }}{% endif %}{% if n.site %} · repérée sur {{ n.site }}{% endif %}
+          {% if n.lien | lien_sur %}· <a href="{{ n.lien | lien_sur }}" target="_blank" rel="noopener noreferrer">voir l'acte</a>{% endif %}</p>
+        {% if n.note %}<p class="note-longue">{{ n.note }}</p>{% endif %}
+        <p class="citation"><code>{{ citation_saisie(n) }}</code></p>
+        <form method="post" action="/dossiers/{{ dossier.identifiant }}/notices/{{ n.notice_id }}" class="rattacher">
+          {{ choix_personne(n.personne_id) }} <button name="action" value="rattacher" class="secondaire">Rattacher</button>
+        </form>
+      </div>
+      <form method="post" action="/dossiers/{{ dossier.identifiant }}/notices/{{ n.notice_id }}" class="actions">
+        <button name="action" value="supprimer" class="icone" title="Supprimer cette notice">🗑</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+</article>
+{% endif %}
+{% endfor %}
+</section>
+
+<details {% if erreurs.personne or not personnes %}open{% endif %} id="ajout-personne">
+  <summary>Ajouter une personne recherchée</summary>
+  {% if erreurs.personne %}<p class="erreur" role="alert">{{ erreurs.personne }}</p>{% endif %}
+  <form method="post" action="/dossiers/{{ dossier.identifiant }}/personnes">
+    {{ champs_personne(none) }}
+    <p><button>Ajouter</button></p>
+  </form>
+</details>
+
+<details {% if erreurs.notice %}open{% endif %} id="ajout-notice">
+  <summary>Saisir un acte trouvé ailleurs (Filae, Geneanet, archives…)</summary>
+  {% if erreurs.notice %}<p class="erreur" role="alert">{{ erreurs.notice }}</p>{% endif %}
+  <form method="post" action="/dossiers/{{ dossier.identifiant }}/notices">
+    <div class="grille">
+      <label>Personne recherchée {{ choix_personne(none) }}</label>
+      <label>Type d'acte
+        <select name="type">
+          {% for code, libelle in evenements.items() %}
+          <option value="{{ code }}">{{ libelle }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Date <input name="date" placeholder="02/03/1755 ou 1755"></label>
+      <label>Lieu <input name="lieu" placeholder="Plougastel-Daoulas (29)"></label>
+      <label>Personnes citées <input name="personnes" placeholder="LE GOFF Marie, fille d'Yves et d'Anne KERGOAT"></label>
+      <label>Archives <input name="depot" placeholder="AD 29"></label>
+      <label>Cote <input name="cote" placeholder="3 E 158/2"></label>
+      <label>Vue <input name="vue" inputmode="numeric"></label>
+      <label>Lien vers l'acte <input name="lien" type="url" placeholder="https://"></label>
+      <label>Repérée sur <input name="site" placeholder="Filae"></label>
+      <label>Note <input name="note"></label>
+    </div>
+    <p><button>Ajouter au dossier</button></p>
+  </form>
+</details>
+
+<section class="zone-danger" aria-labelledby="titre-suppression">
+  <h2 id="titre-suppression">Supprimer le dossier</h2>
+  <p class="meta">Suppression définitive de toutes ses données (personnes, notices, notes), par
+    exemple à la fin d'une mission. Faites d'abord un export si vous voulez en garder une copie.</p>
+  {% if erreurs.supprimer %}<p class="erreur" role="alert">{{ erreurs.supprimer }}</p>{% endif %}
+  <form method="post" action="/dossiers/{{ dossier.identifiant }}/supprimer" class="note">
+    <label>Tapez « {{ dossier.identifiant }} » pour confirmer <input name="confirmation" autocomplete="off"></label>
+    <button class="danger">Supprimer définitivement</button>
+  </form>
+</section>
+{% endblock %}
