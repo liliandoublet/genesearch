@@ -1,5 +1,9 @@
 # Demande d'export des données Socface
 
+> **Plus prioritaire depuis la réorientation du 2026-10-11** : l'atelier est complémentaire de
+> Filae et des sites qui donnent accès aux recensements. Cette demande ne sert que si tu veux
+> un jour importer les recensements dans l'atelier.
+
 Message à envoyer **par toi** (préalable P de `PLAN.md`), au service FranceArchives et à
 l'équipe Socface de l'INED. Je n'ai pas pu vérifier les adresses de contact depuis
 l'environnement de développement : utilise le formulaire de contact du portail FranceArchives

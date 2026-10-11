@@ -1,12 +1,13 @@
 # CLAUDE.md — doudoumil-search
 
-Moteur de recherche généalogique personnel, 100 % local, destiné à **remplacer Filae** pour
-trois usages : la recherche nominative, les recensements transcrits et l'accès aux images des
-actes, sur toute la France. Il indexe des notices de sources publiques (INSEE décès,
-recensements Socface, Morts pour la France, registres matricules, relevés personnels) et les
-interroge avec tolérance aux variantes orthographiques. La recherche approchée est le cas
-nominal. L'arbre généalogique est hors périmètre : l'utilisateur le gère avec son propre code
-à partir du GEDCOM.
+Atelier de recherche généalogique, 100 % local, **complémentaire de Filae** (réorientation du
+2026-10-11 : le projet visait d'abord à remplacer Filae). Filae et les autres sites servent à
+chercher dans leurs index ; l'atelier sert à travailler, pour l'utilisateur ou pour des
+clients (activité commerciale possible) : dossiers de recherche, vérification en lot d'une
+liste ou d'un arbre contre les décès INSEE, recherche approchée dans les sources ouvertes
+téléchargeables et les relevés privés, liens vers les sites et les registres des archives,
+citations et rendu. La recherche approchée reste le cas nominal. L'arbre généalogique est hors
+périmètre : l'utilisateur le gère avec son propre code à partir du GEDCOM.
 
 - Feuille de route détaillée : `PLAN.md` (à lire avant de commencer un jalon)
 - Présentation et démonstrations : `README.md`
@@ -88,29 +89,41 @@ src/doudoumil_search/
 
 > Section tenue à jour à la fin de chaque run (voir « Règle de mise à jour » ci-dessous).
 
-- **Dernière mise à jour** : 2026-10-10
+- **Dernière mise à jour** : 2026-10-11
 - **Jalons terminés** : 0 (socle), 1 (modèle pivot), 2 (ingestion INSEE décès), 3
   (normalisation → silver), 4 (base gold et recherche), 5 (interface web locale), sous réserve
   de la vérification sur de vrais fichiers INSEE.
-- **Jalon en cours** : 8 en partie — **connecteur de relevés terminé** ; Morts pour la France
-  et registres matricules attendent le préalable P. Jalons 6 (Socface) et 7 (images,
-  localisateur de registres) bloqués par le préalable P. Jalon 10 en partie : `doudoumil
-  pipeline` et sauvegarde / restauration faits ; restent la mise à jour vraiment incrémentale
-  de silver et gold, le README complet et l'homogénéité des journaux.
-- **Prochaine action** : côté utilisateur : dérouler `docs/tests-manuels.md` (vrais fichiers
-  INSEE, performances sur ≈ 25 M de décès, comparaison avec Filae, vrai relevé, sauvegarde)
-  et renvoyer sa « fiche de résultats » ; envoyer la demande d'export Socface
-  (`docs/demande-export-socface.md`). Côté code : corriger d'après ce retour (format INSEE,
-  catalogue data.gouv.fr, performances) ; sans retour, finitions du jalon 10 ou jalon 9
-  (GEDCOM, optionnel).
+- **Jalons en partie** : 8 (relevés faits ; Morts pour la France et registres matricules en
+  sommeil) et 10 (`doudoumil pipeline`, sauvegarde et restauration faits ; restent la mise à
+  jour vraiment incrémentale, le README complet, l'homogénéité des journaux).
+- **Suite, depuis la réorientation** (PLAN.md §4) : jalon 11 **dossiers de recherche** (le
+  prochain), 12 vérification en lot (liste ou GEDCOM contre les décès INSEE), 13 passerelles
+  (liens pré-remplis vers Filae, Geneanet, FamilySearch, MatchID, FranceArchives ;
+  localisateur de registres), 14 rendu pour le client. **En sommeil** : 6 (Socface), 7
+  (visionneuse intégrée), 8 (Morts pour la France, registres matricules) ; 9 est repris par
+  12.
+- **Prochaine action** : côté code, jalon 11 (dossiers de recherche), en tranchant d'abord
+  ses deux décisions (une base SQLite par dossier ou une base unique ; notice partagée entre
+  dossiers). Côté utilisateur : dérouler `docs/tests-manuels.md` (vrais fichiers INSEE,
+  performances sur ≈ 25 M de décès, personnes connues, vrai relevé, sauvegarde) et renvoyer
+  sa « fiche de résultats » ; la demande d'export Socface n'est plus prioritaire.
 - **Accès réseau de l'environnement de développement** : data.gouv.fr et insee.fr sont
   bloqués (refus 403 du proxy) ; PyPI, GitHub et registry.npmjs.org passent. Le format INSEE
   et le catalogue data.gouv.fr restent donc à vérifier sur de vrais fichiers.
 - **Décisions prises** :
-  - Périmètre (PLAN.md §1) : recherche nominative, recensements, images ; toute la France ;
+  - **Réorientation (2026-10-11)** : atelier complémentaire de Filae, et non plus
+    remplacement. Raison : les index d'état civil d'avant 1970 de Filae n'ont pas d'équivalent
+    ouvert ni reconstituable ; pour chercher, un abonnement reste le bon choix, y compris pour
+    une activité commerciale. Hors périmètre : reconstituer ou extraire les index d'un site,
+    interroger automatiquement un site (seulement des liens ouverts par l'utilisateur).
+  - Périmètre (PLAN.md §1) : dossiers de recherche, recherche approchée (décès INSEE, relevés
+    privés), vérification en lot, passerelles vers les sites et les archives, rendu ;
     uniquement sur l'ordinateur de l'utilisateur ; pas d'arbre (code GEDCOM de l'utilisateur).
-  - Ordre : chaîne INSEE (jalons 2-4), interface web (5), recensements (6), images et
-    localisateur de registres (7), autres sources (8), GEDCOM optionnel (9), finitions (10).
+  - Activité commerciale : données des clients (famille vivante) gardées en local, dossier
+    supprimable entièrement, durée de conservation à fixer ; conditions d'utilisation des
+    sites payants à vérifier ; un rendu cite l'acte original (archives, cote, vue).
+  - Ordre : faits 0-5, relevés (8), pipeline et sauvegarde (10) ; puis dossiers (11),
+    vérification en lot (12), passerelles (13), rendu (14), finitions (10) au fil de l'eau.
   - N'utiliser que des exports officiels, des API documentées ou des requêtes ponctuelles
     autorisées : jamais d'aspiration massive d'un site.
   - Polars pour les transformations, Parquet pour bronze/silver, DuckDB pour gold.
@@ -154,17 +167,25 @@ src/doudoumil_search/
     - R3 : naissances en intervalles d'années, avec une tolérance par source ;
     - R4 : prénoms comparés sans tenir compte de l'ordre, avec une table d'équivalences ;
     - R5 : score pondéré, puis calibré en probabilité par source.
-- **Points ouverts** : voir les blocs « Décisions » de PLAN.md. Le plus structurant : aucun
-  export en masse de Socface ni des registres matricules n'a encore été trouvé (consultation
-  gratuite sur FranceArchives seulement) ; pistes à vérifier : dump RDF et point SPARQL de
-  FranceArchives, demande d'export à FranceArchives et à l'INED.
+- **Points ouverts** : voir les blocs « Décisions » de PLAN.md, en particulier ceux du
+  jalon 11 ; format des adresses de recherche des sites et conditions d'utilisation de ces
+  liens (préalable P, pour le jalon 13).
 - **Manque assumé** : pas d'index national ouvert des naissances et mariages d'avant 1970 ;
-  compensé par le localisateur de registres (jalon 7) et le connecteur de relevés (jalon 8).
+  c'est le rôle de Filae et des autres sites, que l'atelier complète (dossiers, passerelles,
+  relevés, localisateur de registres).
 - **Dettes connues** : aucune pour l'instant.
 
 ## Journal des sessions
 
 Une ligne par session de travail, la plus récente en haut.
+
+- 2026-10-11 — **Réorientation** : le projet devient un atelier complémentaire de Filae
+  (décision de l'utilisateur). PLAN.md réécrit (but, périmètre, précautions pour une activité
+  commerciale, « qui fait quoi », ordre) ; nouveaux jalons 11 (dossiers de recherche), 12
+  (vérification en lot), 13 (passerelles vers les sites et les archives), 14 (rendu pour le
+  client) ; jalons 6, 7 (visionneuse) et 8 (Morts pour la France, matricules) en sommeil,
+  jalon 9 repris par 12. README, CLAUDE.md et `docs/tests-manuels.md` alignés. Aucun
+  changement de code.
 
 - 2026-10-10 — Correction de la CI : les tests de `pipeline` échouaient sur GitHub (3 tests,
   verts en local) car les fixtures fraîchement extraites par git portent la date du jour, plus

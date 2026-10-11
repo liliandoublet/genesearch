@@ -1,8 +1,17 @@
 # Plan de développement — doudoumil-search
 
-**But** : un moteur de recherche généalogique personnel, sur ton ordinateur, qui remplace Filae
-pour les trois usages qui comptent : la **recherche nominative**, les **recensements
-transcrits** et l'accès aux **images des actes**, sur toute la France.
+**But** : un **atelier de recherche généalogique** sur ton ordinateur, **complémentaire de
+Filae** et des autres sites. Filae (et Geneanet, FamilySearch…) sert à **chercher** dans ses
+index ; l'atelier sert à **travailler** : ranger ce que tu trouves par dossier (pour toi ou
+pour un client), vérifier une liste entière d'un coup, ouvrir le bon registre aux archives,
+citer les sources et rendre un travail propre.
+
+> **Réorientation du 2026-10-11.** Le plan initial visait à remplacer Filae. Les index
+> d'état civil d'avant 1970 que Filae a constitués (des dizaines de millions d'actes
+> transcrits) n'ont pas d'équivalent ouvert et ne sont pas reconstituables à notre échelle :
+> pour chercher, un abonnement reste le bon choix, y compris pour une activité commerciale.
+> Tout ce qui est déjà fait (décès INSEE, relevés, interface, sauvegarde) sert le nouvel
+> objectif ; les jalons qui visaient à remplacer les index de Filae passent en sommeil.
 
 Légende : `[x]` fait · `[~]` en cours · `[ ]` à faire · **Décision** = choix à trancher (et à
 consigner dans CLAUDE.md une fois tranché).
@@ -12,50 +21,66 @@ consigner dans CLAUDE.md une fois tranché).
 ## 1. Périmètre
 
 **Dans le périmètre**
-- Recherche approchée sur des notices nominatives venant de sources publiques françaises.
-- Recensements 1836-1936, avec la vue du foyer complet.
-- Lien vers l'image de l'acte original, ou affichage intégré quand l'archive le permet.
+- **Dossiers de recherche** : un par client ou par famille, avec les personnes recherchées,
+  les notices retenues (trouvées dans l'atelier ou saisies depuis Filae et les autres sites),
+  les notes, les verdicts et les citations de sources.
+- **Recherche approchée** dans les sources ouvertes téléchargeables (décès INSEE) et dans tes
+  sources privées (relevés de cercles, documents fournis par un client).
+- **Vérification en lot** d'une liste ou d'un arbre (GEDCOM) contre les décès INSEE : qui est
+  décédé, quand, où.
+- **Passerelles** : liens de recherche pré-remplis vers Filae, Geneanet, FamilySearch,
+  MatchID et FranceArchives, et ouverture du bon registre sur le site des archives
+  départementales. Ce sont des liens que tu ouvres toi-même, jamais des requêtes
+  automatiques.
+- **Rendu** : export d'un dossier (tableur, rapport avec sources) pour toi ou pour un client.
 - Interface web locale (ouverte dans le navigateur, servie sur `127.0.0.1` uniquement).
-- Notes et favoris personnels sur les notices trouvées.
 
 **Hors périmètre**
-- L'arbre généalogique : il est construit par ton propre code à partir du GEDCOM. Le
-  rapprochement avec l'arbre reste une option en fin de plan (jalon 9).
-- Toute mise en ligne ou republication des données : usage strictement personnel, dans le
-  respect des conditions d'utilisation de chaque source.
-- L'aspiration massive d'un site sans autorisation : on n'utilise que des exports officiels,
-  des API documentées ou des requêtes ponctuelles autorisées.
+- Reconstituer les index de Filae ou d'un autre site, ou copier, extraire et revendre leurs
+  données.
+- Interroger automatiquement un site (Filae, archives…) : l'atelier ne fait que préparer des
+  liens.
+- L'arbre généalogique lui-même : il reste construit par ton propre code à partir du GEDCOM.
+- Toute mise en ligne ou republication des données.
+
+**Activité commerciale : précautions**
+- **Données des clients** : la famille vivante d'un client relève de la protection des
+  données personnelles. Tout reste sur ton ordinateur ; un dossier se supprime entièrement à
+  la fin d'une mission ; une durée de conservation est à fixer.
+- **Conditions d'utilisation** des sites payants : vérifier que l'usage professionnel est
+  permis (ou s'il existe une offre dédiée).
+- **Sources** : un rapport cite l'acte original (archives, cote, vue), pas l'index qui y a
+  mené.
 
 ---
 
-## 2. Ce que Filae t'apporte et par quoi on le remplace
+## 2. Qui fait quoi : les sites de recherche et l'atelier
 
-| Usage Filae | Remplacement | Source | Statut de l'accès | Jalon |
-|---|---|---|---|---|
-| Décès depuis 1970 | Fichier des personnes décédées (≈ 25 M) | INSEE, data.gouv.fr | ouvert, mis à jour chaque mois | 2 |
-| Recensements 1836-1936 transcrits | Base Socface (291 M de personnes en mars 2026, ≈ 400 M annoncées) | FranceArchives, Base de noms | consultation gratuite ; **export en masse à vérifier** | 6 |
-| Morts pour la France 1914-1918 | Base Mémoire des hommes (≈ 1,3 M) | ministère des Armées | téléchargeable ; licence à vérifier | 8 |
-| Registres matricules | Index de la Base de noms (ex-Grand Mémorial, ≈ 40 AD) | FranceArchives | **accès en masse à vérifier** | 8 |
-| Naissances, mariages, décès avant 1970 (index Filae) | Pas d'index national ouvert : localisateur de registres + import de tes relevés | inventaires FranceArchives (Licence Ouverte), relevés personnels | partiel | 7, 8 |
-| Images des actes | Liens vers les visionneuses des AD, affichage IIIF intégré quand disponible | sites des AD, FranceArchives | variable selon l'AD | 7 |
-
-**Le manque principal** : les index d'état civil d'avant 1970 que Filae a constitués
-lui-même n'ont pas d'équivalent ouvert. Le plan le compense de trois façons :
-1. Le **localisateur de registres** (jalon 7) : pour une personne trouvée dans un recensement
-   ou un décès, il propose directement les registres de sa commune de naissance pour les années
-   probables, avec le lien vers les images.
-2. Un **connecteur de relevés** (jalon 8) importe tout relevé que tu obtiens légitimement
-   (cercle généalogique, tes propres transcriptions, exports de ton arbre).
-3. Les recensements couvrent un siècle de population et servent de pivot pour retrouver les
-   actes.
+| Besoin | Où le faire | Pourquoi |
+|---|---|---|
+| Trouver un acte d'état civil d'avant 1970 | Filae, Geneanet, FamilySearch | leurs index n'ont pas d'équivalent ouvert |
+| Recensements 1836-1936 | FranceArchives (Socface) en ligne, Filae | pas d'export en masse connu ; import local seulement si un export est obtenu |
+| Décès depuis 1970 | **l'atelier** (fichier INSEE), MatchID en ligne | l'atelier ajoute la vérification en lot et le rangement par dossier |
+| Vérifier l'acte original | site des archives départementales, **ouvert depuis l'atelier** | le localisateur trouve le registre et la vue |
+| Ranger, noter, citer, rendre le travail | **l'atelier** | ce que les sites font mal : dossiers par client, données gardées chez toi |
+| Relevés privés, documents d'un client | **l'atelier** | sources que les sites n'ont pas |
 
 ---
 
 ## 3. Préalable P — Accès aux sources (en parallèle des jalons 2 à 5)
 
-Ce travail d'enquête conditionne les jalons 6 à 8. Il se fait pendant qu'on construit la chaîne
-sur INSEE, dont l'accès est certain. Les résultats sont consignés dans le tableau du §2 et dans
-CLAUDE.md.
+> **Depuis la réorientation**, seules restent prioritaires les vérifications de l'INSEE, des
+> visionneuses des archives départementales et des adresses de recherche des sites (pour les
+> passerelles du jalon 13). Socface, registres matricules et Morts pour la France sont en
+> sommeil : à reprendre seulement si un export est obtenu.
+
+- [ ] **Adresses de recherche des sites** (jalon 13) : pour Filae, Geneanet, FamilySearch,
+  MatchID et FranceArchives, relever le format d'une adresse de recherche pré-remplie (nom,
+  prénom, années, lieu) et vérifier que les conditions d'utilisation permettent ces liens.
+
+Le reste de ce travail d'enquête conditionnait les jalons 6 à 8, désormais en sommeil (sauf
+les inventaires d'archives et les visionneuses, utiles au localisateur du jalon 13). Les
+résultats sont consignés dans le tableau du §2 et dans CLAUDE.md.
 
 - [~] **Socface** : vérifier s'il existe un export officiel, une API, ou si les notices sont
   dans le dump RDF (`data-dump.francearchives.gouv.fr/rdf/`) ou le point SPARQL
@@ -86,12 +111,22 @@ CLAUDE.md.
 
 ## 4. Ordre des jalons
 
-1. Une chaîne complète sur INSEE décès (jalons 2 à 4), source fiable et accessible.
-2. L'interface web (jalon 5) : dès ce stade, le moteur est utilisable au quotidien.
-3. Les recensements (jalon 6), la plus grosse valeur, selon le résultat du préalable P.
-4. Les images et le localisateur de registres (jalon 7).
-5. Les autres sources nationales et tes relevés (jalon 8).
-6. En option, le rapprochement avec ton arbre (jalon 9), puis les finitions (jalon 10).
+**Faits** : socle et modèle pivot (0-1), chaîne INSEE (2-4), interface web (5), relevés
+(jalon 8, partie relevés), commande unique et sauvegarde (jalon 10, en partie).
+
+**Suite, depuis la réorientation** :
+1. **Dossiers de recherche** (jalon 11) : le cœur de l'atelier ; les trouvailles actuelles
+   deviennent un premier dossier.
+2. **Vérification en lot** (jalon 12) : une liste ou un arbre contre les décès INSEE ; reprend
+   la lecture GEDCOM de l'ancien jalon 9.
+3. **Passerelles** (jalon 13) : liens pré-remplis vers les sites de recherche et localisateur
+   de registres ; reprend la partie « liens » de l'ancien jalon 7.
+4. **Rendu pour le client** (jalon 14).
+5. **Finitions** (jalon 10) au fil de l'eau, en particulier d'après les tests manuels.
+
+**En sommeil** (à reprendre seulement si une source devient accessible en masse) :
+recensements Socface (jalon 6), visionneuse d'images intégrée (jalon 7), Morts pour la France
+et registres matricules (jalon 8).
 
 ---
 
@@ -398,7 +433,7 @@ notice volontairement mal orthographiée retrouvée par le canal B.
 
 ## Jalon 5 — Interface web locale
 
-**Objectif** : remplacer l'écran de recherche de Filae par une interface dans ton navigateur.
+**Objectif** : une interface de recherche dans ton navigateur.
 À la fin de ce jalon, le moteur sert au quotidien, au moins pour les décès depuis 1970.
 
 - [x] Ajouter `fastapi`, `uvicorn` et `jinja2` ; serveur limité à `127.0.0.1`
@@ -446,6 +481,10 @@ notice volontairement mal orthographiée retrouvée par le canal B.
 
 ## Jalon 6 — Recensements Socface
 
+> **En sommeil depuis la réorientation (2026-10-11).** Les recensements se consultent sur
+> FranceArchives ou Filae ; le jalon 13 y donne des liens pré-remplis. À reprendre seulement si
+> la demande d'export (`docs/demande-export-socface.md`) aboutit.
+
 **Objectif** : retrouver un foyer dans les recensements 1836-1936, source bruitée qui justifie
 la recherche approchée. Le mode d'accès dépend du préalable P.
 
@@ -483,6 +522,10 @@ du registre.
 
 ## Jalon 7 — Images des actes et localisateur de registres
 
+> **En partie repris par le jalon 13 (2026-10-11).** Le référentiel des dépôts, le résolveur
+> de liens et le localisateur de registres y passent ; la visionneuse intégrée (IIIF) et la
+> copie d'images restent en sommeil.
+
 **Objectif** : de chaque résultat, aller à l'image du document ; et pour l'état civil non
 indexé, savoir dans quel registre chercher.
 
@@ -510,6 +553,10 @@ naissances de sa commune pour l'année probable.
 ---
 
 ## Jalon 8 — Autres sources nationales et relevés personnels
+
+> **Relevés faits ; le reste en sommeil depuis la réorientation (2026-10-11).** Morts pour la
+> France et registres matricules se consultent en ligne (Mémoire des hommes, FranceArchives) ;
+> connecteurs à reprendre seulement avec un export en masse.
 
 **Objectif** : élargir la couverture aux sources ouvertes restantes et à tes propres relevés.
 
@@ -545,12 +592,15 @@ naissances de sa commune pour l'année probable.
 - Évaluation et calibration : `--cas` compte désormais les cas **par source**, pour qu'un petit
   relevé ait ses propres exemples à côté de 25 M de décès.
 
-**Démo** : un poilu retrouvé dans la base des Morts pour la France, puis dans le recensement
-de 1911 de sa commune.
+**Démo** (relevés) : voir le README, « Jalon 8 — relevés en CSV ou Excel ».
 
 ---
 
 ## Jalon 9 — Rapprochement avec ton arbre GEDCOM (optionnel)
+
+> **Repris par le jalon 12 (2026-10-11)** : la lecture GEDCOM et la recherche de chaque
+> individu deviennent la vérification en lot. Le score de cohérence familiale et l'export vers
+> ton code GEDCOM restent des options.
 
 **Objectif** : signaler les notices qui concernent un individu de ton arbre et proposer des
 candidats pour chacun. Ton arbre lui-même reste géré par ton code.
@@ -583,8 +633,9 @@ candidats pour chacun. Ton arbre lui-même reste géré par ton code.
   `data/releves/`) : `doudoumil sauvegarde`, `doudoumil restaure`, lien dans « Mes
   trouvailles » (`sauvegarde.py`)
 - [~] Tests manuels sur l'ordinateur de l'utilisateur (`docs/tests-manuels.md`) : vrais
-  fichiers INSEE, performances sur la base complète, comparaison avec Filae, vrai relevé ;
-  durée de chaque étape affichée par `doudoumil pipeline`
+  fichiers INSEE, performances sur la base complète, contrôle sur des personnes connues
+  (avec, pour comparaison, ce que donne Filae), vrai relevé ; durée de chaque étape affichée
+  par `doudoumil pipeline`
 - [ ] README complet : installation, place disque nécessaire, ajout d'une source, exemples
 - [ ] Journalisation homogène et messages d'erreur en français
 
@@ -601,6 +652,109 @@ candidats pour chacun. Ton arbre lui-même reste géré par ton code.
   sauvegarde de SQLite (cohérente même si l'interface écrit). Restauration : refuse une archive
   sans manifeste ou dont un chemin sortirait de ces dossiers, sauvegarde d'abord l'état
   actuel, ne remplace que les dossiers présents dans l'archive.
+
+---
+
+## Jalon 11 — Dossiers de recherche
+
+**Objectif** : un classeur par client ou par famille, au cœur de l'atelier. Tout ce que tu
+trouves, ici ou sur Filae, y est rangé avec sa source.
+
+- [ ] **Dossier** : nom, client ou famille, description, dates d'ouverture et de clôture ;
+  dossier actif choisi dans l'interface et dans la CLI
+- [ ] Reprise sans perte des trouvailles existantes dans un premier dossier « Personnel »
+- [ ] **Personnes recherchées** : pour chaque dossier, la liste des personnes visées, avec ce
+  que l'on sait d'elles (nom, prénoms, naissance, lieux, conjoint) ; une recherche se lance
+  d'un clic depuis une personne
+- [ ] **Notices retenues** : favoris, notes et verdicts rangés dans le dossier actif et
+  rattachés à une personne recherchée
+- [ ] **Notice saisie à la main** : un acte trouvé sur Filae ou ailleurs (type, date, lieu,
+  personnes, archives, cote, vue, lien, site où il a été trouvé), avec la même citation que les
+  notices de l'atelier
+- [ ] Page d'un dossier : personnes, notices, notes, citations ; export en tableur
+- [ ] **Suppression complète** d'un dossier, avec confirmation (fin de mission, données d'un
+  client) ; sauvegarde par dossier
+- [ ] CLI : `doudoumil dossier liste|cree|active|exporte|supprime`
+- [ ] Tests, dont la reprise des trouvailles existantes et la suppression complète
+
+**Décisions**
+- Une base SQLite par dossier (`data/perso/dossiers/<nom>.sqlite` : suppression et
+  sauvegarde d'un client isolées) ou une base unique avec une table des dossiers.
+- Une notice peut-elle appartenir à plusieurs dossiers (familles qui se croisent) ?
+
+**Démo** : un dossier client, trois personnes recherchées, une notice de l'atelier et une
+notice saisie depuis Filae, export du dossier.
+
+---
+
+## Jalon 12 — Vérification en lot
+
+**Objectif** : soumettre une liste de personnes ou un arbre GEDCOM et savoir, pour chacune,
+si un décès INSEE correspond, au lieu de les chercher une par une.
+
+- [ ] Lecture d'une liste en CSV ou Excel (même lecture de tableur que les relevés ; colonnes
+  nom, prénoms, sexe, naissance, lieu, conjoint)
+- [ ] Lecture GEDCOM : individus, dates approximatives (« vers 1850 », « avant 1860 »,
+  « entre 1850 et 1855 » → intervalles R3), lieux, conjoints ; réutiliser ton code de lecture
+  s'il est en Python
+- [ ] Recherche de chaque personne par le moteur ; pour une femme mariée, avec son nom de
+  naissance **et** le nom de chaque conjoint (R2)
+- [ ] Résultat par personne : décès probable, à vérifier ou non trouvé, avec la notice
+  proposée et sa probabilité ; export en tableur
+- [ ] Validation ✓ / ✗ dans l'interface : la notice validée entre dans le dossier (jalon 11),
+  le verdict sert à la calibration (R5)
+- [ ] Les personnes importées deviennent les personnes recherchées d'un dossier
+- [ ] Performances : mesurer sur 1 000 personnes (une requête dure environ 0,1 s : quelques
+  minutes attendues), en parallèle si besoin
+- [ ] Rappel affiché : une personne née il y a moins d'un siècle et non trouvée est peut-être
+  vivante (données personnelles)
+
+**Décisions**
+- Score de cohérence familiale (conjoint, parents) : plus tard, si les verdicts montrent des
+  confusions entre homonymes.
+
+**Démo** : l'arbre d'un client (GEDCOM), 200 personnes vérifiées en quelques minutes,
+tableau des décès trouvés.
+
+---
+
+## Jalon 13 — Passerelles vers les sites de recherche et les archives
+
+**Objectif** : depuis une personne ou une notice, ouvrir en un clic la bonne recherche sur
+Filae et les autres sites, et le bon registre aux archives départementales. Uniquement des
+liens que tu ouvres toi-même : aucune requête automatique.
+
+- [ ] Liens de recherche pré-remplis (nom, prénoms, années, lieu) vers Filae, Geneanet,
+  FamilySearch, MatchID et FranceArchives, selon les formats relevés au préalable P
+- [ ] Référentiel des dépôts (`ref/depots.csv`) : pour chaque archive départementale, site,
+  visionneuse, motif de lien vers une vue (repris du jalon 7)
+- [ ] Résolveur de liens : provenance d'une notice (dépôt, cote, vue) → lien vers la vue
+- [ ] **Localisateur de registres** : commune + type d'acte + années probables (R3) → registres
+  disponibles et liens, construit depuis les inventaires de FranceArchives (Licence Ouverte) ;
+  depuis une notice, « chercher l'acte de naissance » propose les registres de la commune de
+  naissance pour les années probables
+- [ ] Bouton « ajouter au dossier » au retour d'un site : ouvre la saisie à la main
+  (jalon 11) préremplie avec la personne
+
+**Démo** : depuis une personne d'un dossier, recherche ouverte sur Filae, acte trouvé, registre
+ouvert aux archives pour vérifier, notice ajoutée au dossier avec sa cote.
+
+---
+
+## Jalon 14 — Rendu pour le client
+
+**Objectif** : produire depuis un dossier un document propre, à remettre à un client ou à
+garder.
+
+- [ ] Rapport d'un dossier : personnes, événements, notes, et pour chaque information sa
+  source (archives, cote, vue, lien)
+- [ ] Formats : page imprimable (HTML) et document modifiable (Word ou PDF)
+- [ ] Mention des sources utilisées et des conditions de réutilisation ; rien sur les
+  personnes vivantes sans le choix explicite de les inclure
+- [ ] Export de l'arbre validé vers un format que ton code GEDCOM peut relire (repris du
+  jalon 9)
+
+**Démo** : rapport d'un dossier client, imprimé ou envoyé en PDF.
 
 ---
 

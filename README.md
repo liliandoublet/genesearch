@@ -1,16 +1,19 @@
 # doudoumil-search
 
-Moteur de recherche généalogique personnel, fonctionnant entièrement en local. Il indexe des
-notices nominatives issues d'archives françaises et les interroge avec tolérance aux variantes
-orthographiques. En option, il les rapproche des individus d'un arbre GEDCOM.
+Atelier de recherche généalogique, fonctionnant entièrement en local, **complémentaire de
+Filae** et des autres sites de recherche. Filae sert à chercher dans ses index d'état civil ;
+l'atelier sert à travailler : ranger ce que tu trouves par dossier (pour toi ou pour un
+client), vérifier une liste entière contre les décès INSEE, chercher dans tes propres relevés,
+ouvrir le bon registre aux archives et citer les sources.
 
-La recherche approchée est le cas nominal : les sources transcrites automatiquement (par
-exemple les recensements Socface) ont un taux d'erreur de 15 à 20 %. Chaque résultat porte un
-niveau de confiance, et chaque notice garde sa provenance (cote, vue, URL).
+Ce qui fonctionne déjà : recherche approchée dans le fichier des décès INSEE (depuis 1970) et
+dans tes relevés en CSV ou Excel, tolérante aux variantes orthographiques ; chaque résultat
+porte un niveau de confiance et chaque notice garde sa provenance (cote, vue, lien) ;
+interface web locale avec « Mes trouvailles », exports et sauvegarde.
 
-Objectif : remplacer Filae pour un usage personnel (recherche nominative, recensements
-transcrits, images des actes). La feuille de route est dans [`PLAN.md`](PLAN.md), les essais à
-faire sur ton ordinateur (vrais fichiers INSEE, performances, comparaison avec Filae) dans
+La feuille de route est dans [`PLAN.md`](PLAN.md) (dossiers par client, vérification en lot,
+liens vers les sites et les archives, rendu pour le client) ; les essais à faire sur ton
+ordinateur (vrais fichiers INSEE, performances, personnes connues) dans
 [`docs/tests-manuels.md`](docs/tests-manuels.md).
 
 ## Prérequis

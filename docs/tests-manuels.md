@@ -7,7 +7,8 @@ environnement où data.gouv.fr est bloqué. Ils ne peuvent donc pas vérifier qu
    code attend (écrits sans avoir pu lire la documentation officielle) ;
 2. les **performances** réelles : durée du pipeline, place sur le disque, mémoire, temps de
    réponse sur environ 25 millions de décès ;
-3. la **qualité des résultats** face à Filae, sur des personnes que tu connais ;
+3. la **qualité des résultats** sur des personnes que tu connais (avec, pour comparaison,
+   ce que Filae donne) ;
 4. le **confort d'usage** de l'interface et de l'import de tes relevés.
 
 Compte une demi-journée pour tout faire, ou procède par étapes : les étapes 1 à 4 suffisent
@@ -70,7 +71,9 @@ document liste ce qu'il faut me renvoyer.
       naissance, prénoms, date et lieu de naissance, date et lieu de décès. Mets-y au moins
       une personne au nom souvent mal écrit, une femme mariée, une personne née à l'étranger ou
       outre-mer, et un nom très courant (MARTIN, BERNARD…).
-- [ ] Pour chacune, ce que Filae te donne (trouvée ou non, à quel rang), pour comparer.
+- [ ] Pour chacune, si tu l'as, ce que Filae te donne (trouvée ou non, à quel rang) : pas
+      pour remplacer Filae, mais pour savoir si l'atelier retrouve bien les décès qu'il
+      contient.
 - [ ] **Un vrai relevé** en CSV ou Excel (cercle généalogique, tes dépouillements).
 - [ ] De quoi noter des durées (montre, ou la commande `time`, voir étape 5).
 
@@ -182,7 +185,7 @@ serveur. Essaie, et coche ce qui marche :
 
 ---
 
-## 4. Comparaison avec Filae (jeu de vérité)
+## 4. Contrôle sur des personnes connues (jeu de vérité)
 
 Avec la base de l'étape 2, seules les personnes décédées en 2019-2020 sont présentes. Fais
 cette étape sur la base complète (étape 5) pour tout ton jeu de vérité.
@@ -301,8 +304,9 @@ time uv run doudoumil pipeline --telecharge
 
 ## Limites connues (inutile de les signaler)
 
-- Pas encore de recensements (Socface), d'images d'actes ni de Morts pour la France : ces
-  sources attendent une réponse à la demande d'export (`docs/demande-export-socface.md`).
+- Pas de recensements (Socface), d'images d'actes ni de Morts pour la France dans l'atelier :
+  ils se consultent sur FranceArchives, Filae ou Mémoire des hommes. L'atelier est
+  complémentaire de ces sites (voir `PLAN.md`).
 - Le fichier INSEE ne couvre que les décès depuis 1970.
 - Relevés : une ligne du tableur = un acte ; les dates républicaines ne sont pas converties.
 - Sans `doudoumil calibre`, les résultats sont « non calibré » : c'est attendu.
